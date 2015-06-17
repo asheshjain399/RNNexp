@@ -1,5 +1,7 @@
+import sys
 import numpy as np
 import theano
+import os
 from theano import tensor as T
 from readData import sortActivities
 from neuralmodels.utils import permute, load
@@ -21,15 +23,16 @@ def text_prediction(class_ids_reverse,p_labels):
 	return text_output
 
 if __name__ == '__main__':
-	
-	test_data = cPickle.load(open('dataset/test_data_4.pik'))	
+
+	index = sys.argv[1]	
+	test_data = cPickle.load(open('dataset/test_data_{0}.pik'.format(index)))	
 	Y_te = test_data['labels']
 	X_te = test_data['features']
 
 	#print X_te.shape
 	#print Y_te.shape
 
-	train_data = cPickle.load(open('dataset/train_data_4.pik'))	
+	train_data = cPickle.load(open('dataset/train_data_{0}.pik'.format(index)))	
 	Y_tr = train_data['labels']
 	X_tr = train_data['features']
 	print X_tr.shape
@@ -48,12 +51,13 @@ if __name__ == '__main__':
 	print 'Number of classes ',outputD
 	print 'Feature dimension ',inputD
 
-	epochs = 80
+	epochs = 200
 	batch_size = num_train
 	learning_rate_decay = 0.97
 	decay_after = 5
 	
-	use_pretrained = False
+	use_pretrained = True
+	train_more = False
 
 	global rnn
 	if not use_pretrained:
@@ -65,23 +69,30 @@ if __name__ == '__main__':
 		# Initializing network
 		rnn = RNN(layers,softmax_loss,trY,1e-3)
 
+		if not os.path.exists('checkpoints/{0}/'.format(index)):
+			os.mkdir('checkpoints/{0}/'.format(index))
+
 		# Fitting model
-		rnn.fitModel(X_tr,Y_tr,1,'checkpoints/',epochs,batch_size,learning_rate_decay,decay_after)
+		rnn.fitModel(X_tr,Y_tr,1,'checkpoints/{0}/'.format(index),epochs,batch_size,learning_rate_decay,decay_after)
 	else:
+		checkpoint = sys.argv[2]
 		# Prediction
-		rnn = load('checkpoints/checkpoint.69')
+		rnn = load('checkpoints/{0}/checkpoint.{1}'.format(index,checkpoint))
+		if train_more:
+			rnn.fitModel(X_tr,Y_tr,1,'checkpoints/{0}/'.format(index),epochs,batch_size,learning_rate_decay,decay_after)
+
 
 	predictions = []
 	errors = 0
 	N = 0
 	for xte,yte in zip(X_te,Y_te):
-		prediction = rnn.predict_sequence(xte,yte,OutputMaxProb)
+		prediction = rnn.predict_output(xte,OutputMaxProb)
 		predictions.append(prediction)
 		t = np.nonzero(yte-prediction)
 		print t
 		errors += len(t[0])
 		N += yte.shape[0]
-	cPickle.dump(predictions,open('predict.pik','wb'))
+	cPickle.dump(predictions,open('dataset/prediction_{0}.pik'.format(index),'wb'))
 	print 'error = {0}'.format(errors*1.0/N)
 	#cPickle.dump(Y_te,open('test.pik','wb'))
 

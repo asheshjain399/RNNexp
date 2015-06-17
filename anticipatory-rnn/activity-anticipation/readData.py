@@ -3,6 +3,7 @@ import re
 from os import listdir
 import random
 from neuralmodels.dataAugmentation import sampleSubSequences
+from utils import sixDigitRandomNum
 import cPickle
 
 
@@ -167,11 +168,13 @@ def sortActivities(folder):
 	train_data = {'params':params,'labels':Y_train,'features':features_train}
 	test_data = {'labels':Y_test,'features':features_test}
 
-	
-	cPickle.dump(train_data,open('dataset/train_data_{0}_appendpos_0.pik'.format(min_length_sequence),'wb'))
-	cPickle.dump(test_data,open('dataset/test_data_{0}_appendpos_0.pik'.format(min_length_sequence),'wb'))
+
+	prefix = sixDigitRandomNum()	
+	cPickle.dump(train_data,open('dataset/train_data_{0}.pik'.format(prefix),'wb'))
+	cPickle.dump(test_data,open('dataset/test_data_{0}.pik'.format(prefix),'wb'))
 
 	print 'T={0} N={1} D={2}'.format(T,N,(D_node+D_edge))
+	print 'Saving prefix as {0}'.format(prefix)
 	#return Y,features
 
 def reshapeData(y,node,edge,D_node,D_edge):
