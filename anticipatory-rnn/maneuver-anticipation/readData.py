@@ -12,7 +12,7 @@ def readFeatures(fname):
 	rows = csv.reader(f,delimiter=',')
 	data = []
 	for row in rows:
-		data.append([float(r) for r in row])
+		data.append([np.float32(r) for r in row])
 	data = np.array(data)
 	f.close()
 	return data.T
@@ -45,6 +45,7 @@ def readManeuvers(folder):
 	return features, sample_ratio
 
 def createData(folder):
+	path_to_dataset = '/scr/ashesh/brain4cars/dataset'
 	features_train,sample_train_ratio = readManeuvers(folder+'/train')
 	if use_data_augmentation:
 		[N_train,features_train] = multiplyData(features_train,sample_train_ratio)
@@ -61,15 +62,15 @@ def createData(folder):
 
 
 	prefix = sixDigitRandomNum()	
-	cPickle.dump(train_data,open('dataset/train_data_{0}.pik'.format(prefix),'wb'))
-	cPickle.dump(test_data,open('dataset/test_data_{0}.pik'.format(prefix),'wb'))
+	cPickle.dump(train_data,open('{1}/train_data_{0}.pik'.format(prefix,path_to_dataset),'wb'))
+	cPickle.dump(test_data,open('{1}/test_data_{0}.pik'.format(prefix,path_to_dataset),'wb'))
 
 	print 'T={0} N={1}'.format(Tmax,N_train)
 	print 'Saving prefix as {0}'.format(prefix)
 
 def processFeatures(y,node,T,N):
 	D = node[0].shape[1]
-	features = np.zeros((T,N,D))
+	features = np.zeros((T,N,D),dtype=np.float32)
 	Y = np.zeros((T,N),dtype=np.int64)
 
 	count = 0
@@ -107,7 +108,7 @@ def reshapeData(y,node):
 	
 	for l,n in zip(y,node):
 		y_.append(np.reshape(l,(l.shape[0],1)))
-		temp = np.zeros((n.shape[0],1,n.shape[1]))
+		temp = np.zeros((n.shape[0],1,n.shape[1]),dtype=np.float32)
 		temp[:,0,:] = n
 		features.append(temp)
 	return y_,features
@@ -138,7 +139,7 @@ if __name__=='__main__':
 	global min_length_sequence, use_data_augmentation, extra_samples, copy_start_state, params, actions, use_sample_ratio
 	use_data_augmentation = True
 	min_length_sequence = 4
-	extra_samples = 5
+	extra_samples = 1
 	copy_start_state = True
 	use_sample_ratio = True
 	params = {
@@ -148,5 +149,6 @@ if __name__=='__main__':
 		'copy_start_state':copy_start_state,
 		}
 	actions = ['end_action','lchange','rchange','lturn','rturn']
-	folder = '/home/ashesh/project/Brain4Cars/Software/HMMBaseline/observations/all/AIOHMM_I_O/fold_1'
+	#folder = '/home/ashesh/project/Brain4Cars/Software/HMMBaseline/observations/all/AIOHMM_I_O/fold_1'
+	folder = '/scr/ashesh/brain4cars/all/AIOHMM_I_O/fold_1'
 	createData(folder)
