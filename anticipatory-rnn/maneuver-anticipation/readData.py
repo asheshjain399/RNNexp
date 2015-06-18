@@ -27,27 +27,37 @@ def iterateThroughFiles(folder):
 	return features
 
 def readManeuvers(folder):
-	actions = ['end_action','lchange','rchange','lturn','rturn']
 	features = {}
+	class_wise_count = {}
+	sample_ratio = {}
+	N = 0.0
 	for action in actions:
-		features[action] = iterateThroughFiles(folder+'/'+action)	
+		features[action] = iterateThroughFiles(folder+'/'+action)
+		class_wise_count[action] = 1.0*len(features[action])
+		N = N + class_wise_count[action]
+	for action in actions:
+		if use_sample_ratio:
+			#sample_ratio[action] = 1.0 - ( class_wise_count[action]/N )
+			sample_ratio[action] = class_wise_count['end_action']/class_wise_count[action]
+		else:
+			sample_ratio[action] = 1.0
 
-	return features
+	return features, sample_ratio
 
 def createData(folder):
-	features_train = readManeuvers(folder+'/train')
+	features_train,sample_train_ratio = readManeuvers(folder+'/train')
 	if use_data_augmentation:
-		[N_train,features_train] = multiplyData(features_train)
+		[N_train,features_train] = multiplyData(features_train,sample_train_ratio)
 	[N_train,Tmax,Y_train,features_train] = createLabels(features_train)
 	[Y_train,features_train] = processFeatures(Y_train,features_train,Tmax,N_train)	
 
 
-	features_test = readManeuvers(folder+'/test')
+	features_test,_ = readManeuvers(folder+'/test')
 	[N_test,Tmax,Y_test,features_test] = createLabels(features_test)
 	[Y_test,features_test] = reshapeData(Y_test,features_test)
 
-	train_data = {'params':params,'labels':Y_train,'features':features_train}
-	test_data = {'labels':Y_test,'features':features_test}
+	train_data = {'params':params,'labels':Y_train,'features':features_train,'actions':actions}
+	test_data = {'labels':Y_test,'features':features_test,'actions':actions}
 
 
 	prefix = sixDigitRandomNum()	
@@ -77,7 +87,6 @@ def processFeatures(y,node,T,N):
 
 
 def createLabels(features):
-	actions = ['end_action','lchange','rchange','lturn','rturn']
 	X = []
 	Y = []
 	N = 0
@@ -103,14 +112,13 @@ def reshapeData(y,node):
 		features.append(temp)
 	return y_,features
 
-def multiplyData(features):
-	actions = ['end_action','lchange','rchange','lturn','rturn']
+def multiplyData(features,sample_ratio):
 	N = 0	
 	for action in actions:
 		new_samples = []
 		for f in features[action]:
 			N += 1
-			samples = sampleSubSequences(f.shape[0],extra_samples,min_length_sequence)
+			samples = sampleSubSequences(f.shape[0],int(sample_ratio[action]*extra_samples),min_length_sequence)
 			for s in samples:
 				N += 1
 				if copy_start_state:			
@@ -123,19 +131,22 @@ def multiplyData(features):
 				else:
 					new_samples.append(f[s[0]:s[1],:])
 		features[action] = features[action] + new_samples
+		print '{0} {1}'.format(action,len(features[action]))
 	return N,features
 
 if __name__=='__main__':
-	global min_length_sequence, use_data_augmentation, extra_samples, copy_start_state, params
+	global min_length_sequence, use_data_augmentation, extra_samples, copy_start_state, params, actions, use_sample_ratio
 	use_data_augmentation = True
 	min_length_sequence = 4
-	extra_samples = 100
+	extra_samples = 5
 	copy_start_state = True
+	use_sample_ratio = True
 	params = {
 		'use_data_augmentation':use_data_augmentation,
 		'min_length_sequence':min_length_sequence,
 		'extra_samples':extra_samples,
 		'copy_start_state':copy_start_state,
 		}
+	actions = ['end_action','lchange','rchange','lturn','rturn']
 	folder = '/home/ashesh/project/Brain4Cars/Software/HMMBaseline/observations/all/AIOHMM_I_O/fold_1'
 	createData(folder)
