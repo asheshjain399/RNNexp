@@ -8,15 +8,17 @@ from neuralmodels.costs import softmax_decay_loss,softmax_loss
 from neuralmodels.models import RNN
 from neuralmodels.predictions import OutputMaxProb, OutputSampleFromDiscrete,OutputActionThresh
 from neuralmodels.layers import softmax, simpleRNN, OneHot, LSTM, TemporalInputFeatures
+from neuralmodels.updates import Adagrad
 import cPickle
 from utils import confusionMat
 from predictions import predictManeuver,predictLastTimeManeuver
 
 if __name__ == '__main__':
 
-	index = sys.argv[1]	
-	path_to_dataset = '/scr/ashesh/brain4cars/dataset'
-	path_to_checkpoints = '/scr/ashesh/brain4cars/checkpoints'
+	index = sys.argv[1]
+	fold = sys.argv[2]	
+	path_to_dataset = '/scr/ashesh/brain4cars/dataset/{0}'.format(fold)
+	path_to_checkpoints = '/scr/ashesh/brain4cars/checkpoints/{0}'.format(fold)
 	test_data = cPickle.load(open('{1}/test_data_{0}.pik'.format(index,path_to_dataset)))	
 	Y_te = test_data['labels']
 	X_te = test_data['features']
@@ -48,7 +50,7 @@ if __name__ == '__main__':
 	print 'Number of classes ',outputD
 	print 'Feature dimension ',inputD
 
-	epochs = 2000
+	epochs = 350
 	batch_size = num_train
 	learning_rate_decay = 0.97
 	decay_after = 5
@@ -58,13 +60,14 @@ if __name__ == '__main__':
 	global rnn
 	if not use_pretrained:
 		# Creating network layers
-		layers = [TemporalInputFeatures(inputD),LSTM('tanh','sigmoid','orthogonal',6,16,None),softmax(num_classes)]
+		#layers = [TemporalInputFeatures(inputD),LSTM('tanh','sigmoid','orthogonal',4,32,None),LSTM('tanh','sigmoid','orthogonal',4,32,None),softmax(num_classes)]
+		layers = [TemporalInputFeatures(inputD),LSTM('tanh','sigmoid','orthogonal',4,32,None),softmax(num_classes)]
 
 		trY = T.lmatrix()
 		
 
 		# Initializing network
-		rnn = RNN(layers,softmax_decay_loss,trY,1e-3)
+		rnn = RNN(layers,softmax_decay_loss,trY,1e-3,Adagrad())
 
 		if not os.path.exists(path_to_checkpoints):
 			os.mkdir(path_to_checkpoints)
@@ -75,7 +78,7 @@ if __name__ == '__main__':
 		# Fitting model
 		rnn.fitModel(X_tr,Y_tr,1,'{1}/{0}/'.format(index,path_to_checkpoints),epochs,batch_size,learning_rate_decay,decay_after)
 	else:
-		checkpoint = sys.argv[2]
+		checkpoint = sys.argv[3]
 		# Prediction
 		rnn = load('{2}/{0}/checkpoint.{1}'.format(index,checkpoint,path_to_checkpoints))
 		if train_more:

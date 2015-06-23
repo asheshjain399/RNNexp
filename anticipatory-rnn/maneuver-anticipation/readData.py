@@ -6,6 +6,7 @@ import random
 from neuralmodels.dataAugmentation import sampleSubSequences
 from utils import sixDigitRandomNum
 import cPickle
+import sys
 
 def readFeatures(fname):
 	f = open(fname,'rb')
@@ -45,7 +46,10 @@ def readManeuvers(folder):
 	return features, sample_ratio
 
 def createData(folder):
-	path_to_dataset = '/scr/ashesh/brain4cars/dataset'
+	path_to_dataset = '/scr/ashesh/brain4cars/dataset/{0}'.format(fold)
+	if not os.path.exists(path_to_dataset):
+		os.mkdir(path_to_dataset)	
+
 	features_train,sample_train_ratio = readManeuvers(folder+'/train')
 	if use_data_augmentation:
 		[N_train,features_train] = multiplyData(features_train,sample_train_ratio)
@@ -136,10 +140,10 @@ def multiplyData(features,sample_ratio):
 	return N,features
 
 if __name__=='__main__':
-	global min_length_sequence, use_data_augmentation, extra_samples, copy_start_state, params, actions, use_sample_ratio
+	global min_length_sequence, use_data_augmentation, extra_samples, copy_start_state, params, actions, use_sample_ratio, fold
 	use_data_augmentation = True
 	min_length_sequence = 4
-	extra_samples = 1
+	extra_samples = 4
 	copy_start_state = True
 	use_sample_ratio = True
 	params = {
@@ -150,5 +154,6 @@ if __name__=='__main__':
 		}
 	actions = ['end_action','lchange','rchange','lturn','rturn']
 	#folder = '/home/ashesh/project/Brain4Cars/Software/HMMBaseline/observations/all/AIOHMM_I_O/fold_1'
-	folder = '/scr/ashesh/brain4cars/all/AIOHMM_I_O/fold_1'
+	fold = sys.argv[1]
+	folder = '/scr/ashesh/brain4cars/all/AIOHMM_I_O/{0}'.format(fold)
 	createData(folder)
