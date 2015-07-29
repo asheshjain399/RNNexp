@@ -65,7 +65,6 @@ def createData(folder):
 	test_data = {'labels':Y_test,'features':features_test,'actions':actions}
 
 
-	prefix = sixDigitRandomNum()	
 	cPickle.dump(train_data,open('{1}/train_data_{0}.pik'.format(prefix,path_to_dataset),'wb'))
 	cPickle.dump(test_data,open('{1}/test_data_{0}.pik'.format(prefix,path_to_dataset),'wb'))
 
@@ -140,7 +139,7 @@ def multiplyData(features,sample_ratio):
 	return N,features
 
 if __name__=='__main__':
-	global min_length_sequence, use_data_augmentation, extra_samples, copy_start_state, params, actions, use_sample_ratio, fold
+	global min_length_sequence, use_data_augmentation, extra_samples, copy_start_state, params, actions, use_sample_ratio, fold, prefix
 	use_data_augmentation = True
 	min_length_sequence = 4
 	extra_samples = 4
@@ -152,8 +151,11 @@ if __name__=='__main__':
 		'extra_samples':extra_samples,
 		'copy_start_state':copy_start_state,
 		}
-	actions = ['end_action','lchange','rchange','lturn','rturn']
+	prefix = sixDigitRandomNum()	
+	#actions = ['end_action','lchange','rchange','lturn','rturn']
+	actions = ['end_action','lchange','rchange']
 	#folder = '/home/ashesh/project/Brain4Cars/Software/HMMBaseline/observations/all/AIOHMM_I_O/fold_1'
-	fold = sys.argv[1]
-	folder = '/scr/ashesh/brain4cars/all/AIOHMM_I_O/{0}'.format(fold)
-	createData(folder)
+	folds = ['fold_1','fold_2','fold_3','fold_4','fold_5']
+	for fold in folds:
+		folder = '/scr/ashesh/brain4cars/lane/AIOHMM_I_O/{0}'.format(fold)
+		createData(folder)

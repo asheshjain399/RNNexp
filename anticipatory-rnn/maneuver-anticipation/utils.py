@@ -7,13 +7,15 @@ def sixDigitRandomNum():
 		st = st + str(random.randint(0,9))
 	return st
 
-def confusionMat(P,Y):
+def confusionMat(P,Y,T):
 	size = np.max(Y) + 1
 	confMat = np.zeros((size,size))
-	for p,y in zip(P,Y):
+	TimeMat = np.zeros((size,size))
+	for p,y,t in zip(P,Y,T):
 		confMat[p,y] += 1.0
+		TimeMat[p,y] += t
 	col_sum = np.reshape(np.sum(confMat,axis=1),(size,1))
 	row_sum = np.reshape(np.sum(confMat,axis=0),(1,size))
 	precision_confMat = confMat/np.repeat(col_sum,size,axis=1)
 	recall_confMat = confMat/np.repeat(row_sum,size,axis=0)
-	return confMat,precision_confMat,recall_confMat
+	return confMat,precision_confMat,recall_confMat,TimeMat

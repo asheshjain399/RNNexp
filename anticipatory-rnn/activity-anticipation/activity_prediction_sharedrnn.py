@@ -125,8 +125,10 @@ if __name__ == "__main__":
 	if index == '183323':
 		checkpoints=['399','250','340','300']
 
-	#if index == '427232':
-	#	checkpoints=['300','300','399','399']
+	#if index == '427232': # Joint model outperforming state-of-the-art
+	#	checkpoints=['380','300','399','350'] # For anticipation
+	#	checkpoints=['399','399','399','350'] # For detection
+
 	print "Using {0} architecture".format(architecture)
 	print "************* Checkpoint {0} ************".format(checkpoint)
 	folds = ['1','2','3','4']

@@ -32,6 +32,7 @@ def evaluate(index,fold,checkpoint):
 	N = 0
 	P = []
 	Y = []
+	Time_before_maneuver = []
 	for xte,yte in zip(X_te,Y_te):
 		prediction = rnn.predict_output(xte,OutputActionThresh)
 		#print prediction.T
@@ -44,10 +45,11 @@ def evaluate(index,fold,checkpoint):
 		prediction[prediction>0] -= 1
 		actual[actual>0] -= 1
 		
-		p = predictManeuver(prediction,actions)
+		p,anticipation_time = predictManeuver(prediction,actions)
 		y = actual[-1]
 		P.append(p)
 		Y.append(y)
+		Time_before_maneuver.append(anticipation_time)
 		result = {'actual':y,'prediction':p,'timeseries':list(prediction)}
 		#print result.values()
 		errors += len(t[0])
@@ -55,10 +57,11 @@ def evaluate(index,fold,checkpoint):
 	
 	P = np.array(P)
 	Y = np.array(Y)
-	[conMat,p_mat,re_mat] = confusionMat(P,Y)
+	Time_before_maneuver = np.array(Time_before_maneuver)
+	[conMat,p_mat,re_mat,time_mat] = confusionMat(P,Y,Time_before_maneuver)
 
 	cPickle.dump(predictions,open('{1}/prediction_{0}.pik'.format(index,path_to_dataset),'wb'))
-	return conMat,p_mat,re_mat
+	return conMat,p_mat,re_mat,time_mat
 
 def load_rnn(index,fold,checkpoint):
 	path_to_dataset = '/scr/ashesh/brain4cars/dataset/{0}'.format(fold)
