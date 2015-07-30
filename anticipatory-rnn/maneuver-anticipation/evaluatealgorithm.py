@@ -9,6 +9,7 @@ folds = ['fold_1', 'fold_2', 'fold_3', 'fold_4', 'fold_5']
 
 size = 5
 index = []
+model_type = 'lstm_one_layer'
 if maneuver_type == 'all':
 	size = 5
 	#index = ['054061', '152011', '646142', '217335', '775723']
@@ -25,8 +26,11 @@ elif maneuver_type == 'lane':
 	index = ['723759', '723759', '723759', '723759', '723759']
 	size = 3		
 elif maneuver_type == 'turns':
-	index = ['723759', '723759', '723759', '723759', '723759']
+	#i = '209221'
+	i = '701037'
+	index = [i,i,i,i,i]
 	size = 3
+	model_type = 'multipleRNNs'
 else:
 	print "did not match any maneuver"
 
@@ -39,7 +43,7 @@ avg_recall = []
 avg_anticipation_time = []
 
 for i,f in zip(index,folds):
-	[conMat,p_mat,re_mat,time_mat] = evaluate(i,f,checkpoint)
+	[conMat,p_mat,re_mat,time_mat] = evaluate(i,f,checkpoint,model_type)
 	confMat += conMat
 	pMat += p_mat
 	rMat += re_mat

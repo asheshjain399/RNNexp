@@ -2,9 +2,9 @@ import numpy as np
 import theano
 import os
 from theano import tensor as T
-from neuralmodels.utils import permute, load
+from neuralmodels.utils import permute, load, loadMultipleRNNsCombined
 from neuralmodels.costs import softmax_decay_loss,softmax_loss
-from neuralmodels.models import RNN
+from neuralmodels.models import RNN, MultipleRNNsCombined
 from neuralmodels.predictions import OutputMaxProb, OutputSampleFromDiscrete,OutputActionThresh
 from neuralmodels.layers import softmax, simpleRNN, OneHot, LSTM, TemporalInputFeatures
 import cPickle
@@ -12,7 +12,7 @@ from utils import confusionMat
 from predictions import predictManeuver,predictLastTimeManeuver
 import sys
 
-def evaluate(index,fold,checkpoint):
+def evaluate(index,fold,checkpoint,model_type='lstm_one_layer'):
 	path_to_dataset = '/scr/ashesh/brain4cars/dataset/{0}'.format(fold)
 	path_to_checkpoints = '/scr/ashesh/brain4cars/checkpoints/{0}'.format(fold)
 	test_data = cPickle.load(open('{1}/test_data_{0}.pik'.format(index,path_to_dataset)))	
@@ -25,7 +25,11 @@ def evaluate(index,fold,checkpoint):
 		actions = ['end_action','lchange','rchange','lturn','rturn']
 
 	# Prediction
-	rnn = load('{2}/{0}/checkpoint.{1}'.format(index,checkpoint,path_to_checkpoints))
+	rnn = []
+	if model_type == 'multipleRNNs':
+		rnn = loadMultipleRNNsCombined('{2}/{0}/checkpoint.{1}'.format(index,checkpoint,path_to_checkpoints))
+	else:
+		rnn = load('{2}/{0}/checkpoint.{1}'.format(index,checkpoint,path_to_checkpoints))
 
 	predictions = []
 	errors = 0
@@ -34,7 +38,15 @@ def evaluate(index,fold,checkpoint):
 	Y = []
 	Time_before_maneuver = []
 	for xte,yte in zip(X_te,Y_te):
-		prediction = rnn.predict_output(xte,OutputActionThresh)
+		inputD = xte.shape[2]
+		road_feature_dimension = 4
+		prediction = []
+
+		if model_type == 'multipleRNNs':
+			prediction = rnn.predict_output([xte[:,:,(inputD-road_feature_dimension):],xte],OutputActionThresh)
+		else:
+			prediction = rnn.predict_output(xte,OutputActionThresh)
+
 		#print prediction.T
 		predictions.append(prediction)
 		t = np.nonzero(yte-prediction)
@@ -73,7 +85,7 @@ if __name__ == '__main__':
 	index = sys.argv[1]	
 	fold = sys.argv[2]	
 	checkpoint = sys.argv[3]
-	[conMat,p_mat,re_mat] = evaluate(index,fold,checkpoint)
+	[conMat,p_mat,re_mat,time_mat] = evaluate(index,fold,checkpoint)
 	print conMat
 	print p_mat
 	print re_mat

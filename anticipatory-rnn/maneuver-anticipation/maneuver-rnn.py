@@ -5,10 +5,10 @@ import os
 from theano import tensor as T
 from neuralmodels.utils import permute, load
 from neuralmodels.costs import softmax_decay_loss,softmax_loss
-from neuralmodels.models import RNN
+from neuralmodels.models import RNN, MultipleRNNsCombined
 from neuralmodels.predictions import OutputMaxProb, OutputSampleFromDiscrete,OutputActionThresh
 from neuralmodels.layers import softmax, simpleRNN, OneHot, LSTM, TemporalInputFeatures
-from neuralmodels.updates import Adagrad
+from neuralmodels.updates import Adagrad, RMSprop
 import cPickle
 from utils import confusionMat
 from predictions import predictManeuver,predictLastTimeManeuver
@@ -50,74 +50,45 @@ if __name__ == '__main__':
 	print 'Number of classes ',outputD
 	print 'Feature dimension ',inputD
 
-	epochs = 350
+	epochs = 600
 	batch_size = num_train
 	learning_rate_decay = 0.97
 	decay_after = 5
-	
+	step_size = 1e-4
+		
 	use_pretrained = False 
 	train_more = False
 	global rnn
+
+	architectures = ['lstm_one_layer','lstm_two_layers','multipleRNNs']
+	model_type = 2
+
+
 	if not use_pretrained:
-		# Creating network layers
-		#layers = [TemporalInputFeatures(inputD),LSTM('tanh','sigmoid','orthogonal',4,32,None),LSTM('tanh','sigmoid','orthogonal',4,32,None),softmax(num_classes)]
-		layers = [TemporalInputFeatures(inputD),LSTM('tanh','sigmoid','orthogonal',4,32,None),softmax(num_classes)]
-
-		trY = T.lmatrix()
-		
-
-		# Initializing network
-		rnn = RNN(layers,softmax_decay_loss,trY,1e-3,Adagrad())
-
 		if not os.path.exists(path_to_checkpoints):
 			os.mkdir(path_to_checkpoints)
 
 		if not os.path.exists('{1}/{0}/'.format(index,path_to_checkpoints)):
 			os.mkdir('{1}/{0}/'.format(index,path_to_checkpoints))
 
-		# Fitting model
-		rnn.fitModel(X_tr,Y_tr,1,'{1}/{0}/'.format(index,path_to_checkpoints),epochs,batch_size,learning_rate_decay,decay_after)
-	else:
-		checkpoint = sys.argv[3]
-		# Prediction
-		rnn = load('{2}/{0}/checkpoint.{1}'.format(index,checkpoint,path_to_checkpoints))
-		if train_more:
+		trY = T.lmatrix()
+		
+		# Creating network layers
+		if architectures[model_type] == 'lstm_one_layer':
+			layers = [TemporalInputFeatures(inputD),LSTM('tanh','sigmoid','orthogonal',4,32,None),softmax(num_classes)]
+			rnn = RNN(layers,softmax_decay_loss,trY,step_size,Adagrad())
 			rnn.fitModel(X_tr,Y_tr,1,'{1}/{0}/'.format(index,path_to_checkpoints),epochs,batch_size,learning_rate_decay,decay_after)
 
+		elif architectures[model_type] == 'lstm_two_layers':
+			layers = [TemporalInputFeatures(inputD),LSTM('tanh','sigmoid','orthogonal',4,32,None),LSTM('tanh','sigmoid','orthogonal',4,32,None),softmax(num_classes)]
+			rnn = RNN(layers,softmax_decay_loss,trY,step_size,Adagrad())
+			rnn.fitModel(X_tr,Y_tr,1,'{1}/{0}/'.format(index,path_to_checkpoints),epochs,batch_size,learning_rate_decay,decay_after)
 
-	predictions = []
-	errors = 0
-	N = 0
-	P = []
-	Y = []
-	for xte,yte in zip(X_te,Y_te):
-		prediction = rnn.predict_output(xte,OutputActionThresh)
-		predictions.append(prediction)
-		t = np.nonzero(yte-prediction)
-	
-		# Label 0 is the dummy label. Currently maneuvers are labeled [1..n]	
-		prediction = prediction[:,0]
-		actual = yte[:,0]
-		prediction[prediction>0] -= 1
-		actual[actual>0] -= 1
-		
-		p = predictManeuver(prediction,actions)
-		y = actual[-1]
-		P.append(p)
-		Y.append(y)
+		elif architectures[model_type] == 'multipleRNNs':
+			road_features_dimension = 4
+			layers_1 = [TemporalInputFeatures(road_features_dimension)]
+			layers_2 = [TemporalInputFeatures(inputD),LSTM('tanh','sigmoid','orthogonal',4,32,None)]
+			output_layer = [softmax(num_classes)]
+			rnn = MultipleRNNsCombined([layers_1,layers_2],output_layer,softmax_decay_loss,trY,step_size,RMSprop())
+			rnn.fitModel([X_tr[:,:,(inputD-road_features_dimension):],X_tr],Y_tr,1,'{1}/{0}/'.format(index,path_to_checkpoints),epochs,batch_size,learning_rate_decay,decay_after)
 
-		errors += len(t[0])
-		N += yte.shape[0]
-	
-	P = np.array(P)
-	Y = np.array(Y)
-	[conMat,p_mat,re_mat] = confusionMat(P,Y)
-	print conMat
-	print p_mat
-	print re_mat
-
-	cPickle.dump(predictions,open('{1}/prediction_{0}.pik'.format(index,path_to_dataset),'wb'))
-	print 'error = {0}'.format(errors*1.0/N)
-	#cPickle.dump(Y_te,open('test.pik','wb'))
-
-	
