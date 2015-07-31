@@ -54,7 +54,7 @@ if __name__ == '__main__':
 	batch_size = num_train
 	learning_rate_decay = 0.97
 	decay_after = 5
-	step_size = 1e-4
+	step_size = 6e-4
 		
 	use_pretrained = False 
 	train_more = False
@@ -87,8 +87,10 @@ if __name__ == '__main__':
 		elif architectures[model_type] == 'multipleRNNs':
 			road_features_dimension = 4
 			layers_1 = [TemporalInputFeatures(road_features_dimension)]
-			layers_2 = [TemporalInputFeatures(inputD),LSTM('tanh','sigmoid','orthogonal',4,32,None)]
-			output_layer = [softmax(num_classes)]
-			rnn = MultipleRNNsCombined([layers_1,layers_2],output_layer,softmax_decay_loss,trY,step_size,RMSprop())
-			rnn.fitModel([X_tr[:,:,(inputD-road_features_dimension):],X_tr],Y_tr,1,'{1}/{0}/'.format(index,path_to_checkpoints),epochs,batch_size,learning_rate_decay,decay_after)
+			layers_2 = [TemporalInputFeatures(inputD-road_features_dimension),LSTM('tanh','sigmoid','orthogonal',4,64,None)]
+			#layers_2 = [TemporalInputFeatures(inputD),LSTM('tanh','sigmoid','orthogonal',4,32,None)]
+			output_layer = [simpleRNN('tanh','normal',4,64,temporal_connection=False),softmax(num_classes)]
+			rnn = MultipleRNNsCombined([layers_1,layers_2],output_layer,softmax_decay_loss,trY,step_size,Adagrad())
+			#[:,:,:inputD-road_features_dimension]
+			rnn.fitModel([X_tr[:,:,(inputD-road_features_dimension):],X_tr[:,:,:inputD-road_features_dimension]],Y_tr,1,'{1}/{0}/'.format(index,path_to_checkpoints),epochs,batch_size,learning_rate_decay,decay_after)
 

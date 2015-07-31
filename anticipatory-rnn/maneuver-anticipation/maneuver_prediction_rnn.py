@@ -12,10 +12,15 @@ from utils import confusionMat
 from predictions import predictManeuver,predictLastTimeManeuver
 import sys
 
-def evaluate(index,fold,checkpoint,model_type='lstm_one_layer'):
+def evaluate(index,fold,checkpoint,model_type='lstm_one_layer',path_to_load_from=''):
 	path_to_dataset = '/scr/ashesh/brain4cars/dataset/{0}'.format(fold)
+
+	if len(path_to_load_from) > 0:
+		path_to_dataset = path_to_load_from
+
 	path_to_checkpoints = '/scr/ashesh/brain4cars/checkpoints/{0}'.format(fold)
 	test_data = cPickle.load(open('{1}/test_data_{0}.pik'.format(index,path_to_dataset)))	
+
 	Y_te = test_data['labels']
 	X_te = test_data['features']
 	actions = []
@@ -27,9 +32,15 @@ def evaluate(index,fold,checkpoint,model_type='lstm_one_layer'):
 	# Prediction
 	rnn = []
 	if model_type == 'multipleRNNs':
-		rnn = loadMultipleRNNsCombined('{2}/{0}/checkpoint.{1}'.format(index,checkpoint,path_to_checkpoints))
+		if len(path_to_load_from) > 0:
+			rnn = loadMultipleRNNsCombined('{0}/checkpoint.{1}'.format(path_to_load_from,checkpoint))
+		else:
+			rnn = loadMultipleRNNsCombined('{2}/{0}/checkpoint.{1}'.format(index,checkpoint,path_to_checkpoints))
 	else:
-		rnn = load('{2}/{0}/checkpoint.{1}'.format(index,checkpoint,path_to_checkpoints))
+		if len(path_to_load_from) > 0:
+			rnn = load('{0}/checkpoint.{1}'.format(path_to_load_from,checkpoint))
+		else:
+			rnn = load('{2}/{0}/checkpoint.{1}'.format(index,checkpoint,path_to_checkpoints))
 
 	predictions = []
 	errors = 0
@@ -43,7 +54,8 @@ def evaluate(index,fold,checkpoint,model_type='lstm_one_layer'):
 		prediction = []
 
 		if model_type == 'multipleRNNs':
-			prediction = rnn.predict_output([xte[:,:,(inputD-road_feature_dimension):],xte],OutputActionThresh)
+			prediction = rnn.predict_output([xte[:,:,(inputD-road_feature_dimension):],xte[:,:,:(inputD-road_feature_dimension)]],OutputActionThresh)
+			#[:,:,:(inputD-road_feature_dimension)]
 		else:
 			prediction = rnn.predict_output(xte,OutputActionThresh)
 
@@ -71,8 +83,6 @@ def evaluate(index,fold,checkpoint,model_type='lstm_one_layer'):
 	Y = np.array(Y)
 	Time_before_maneuver = np.array(Time_before_maneuver)
 	[conMat,p_mat,re_mat,time_mat] = confusionMat(P,Y,Time_before_maneuver)
-
-	cPickle.dump(predictions,open('{1}/prediction_{0}.pik'.format(index,path_to_dataset),'wb'))
 	return conMat,p_mat,re_mat,time_mat
 
 def load_rnn(index,fold,checkpoint):

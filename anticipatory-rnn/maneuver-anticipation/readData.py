@@ -141,8 +141,8 @@ def multiplyData(features,sample_ratio):
 if __name__=='__main__':
 	global min_length_sequence, use_data_augmentation, extra_samples, copy_start_state, params, actions, use_sample_ratio, fold, prefix
 	use_data_augmentation = True
-	min_length_sequence = 4
-	extra_samples = 10
+	min_length_sequence = 2
+	extra_samples = 12
 	copy_start_state = True
 	use_sample_ratio = True
 	params = {
