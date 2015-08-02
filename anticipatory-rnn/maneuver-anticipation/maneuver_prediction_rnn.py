@@ -13,13 +13,14 @@ from predictions import predictManeuver,predictLastTimeManeuver
 import sys
 
 def evaluate(index,fold,checkpoint,model_type='lstm_one_layer',path_to_load_from=''):
-	path_to_dataset = '/scr/ashesh/brain4cars/dataset/{0}'.format(fold)
+	pwd = os.getcwd()
+	path_to_dataset = '%s/checkpoints/all/%s' % (pwd, fold)
+	path_to_checkpoints = '%s/checkpoints/all/%s' % (pwd, fold)
 
 	if len(path_to_load_from) > 0:
 		path_to_dataset = path_to_load_from
 
-	path_to_checkpoints = '/scr/ashesh/brain4cars/checkpoints/{0}'.format(fold)
-	test_data = cPickle.load(open('{1}/test_data_{0}.pik'.format(index,path_to_dataset)))	
+	test_data = cPickle.load(open('{1}/test_data_{0}.pik'.format(index,path_to_dataset)))
 
 	Y_te = test_data['labels']
 	X_te = test_data['features']
@@ -62,13 +63,13 @@ def evaluate(index,fold,checkpoint,model_type='lstm_one_layer',path_to_load_from
 		#print prediction.T
 		predictions.append(prediction)
 		t = np.nonzero(yte-prediction)
-	
-		# Label 0 is the dummy label. Currently maneuvers are labeled [1..n]	
+
+		# Label 0 is the dummy label. Currently maneuvers are labeled [1..n]
 		prediction = prediction[:,0]
 		actual = yte[:,0]
 		prediction[prediction>0] -= 1
 		actual[actual>0] -= 1
-		
+
 		p,anticipation_time = predictManeuver(prediction,actions)
 		y = actual[-1]
 		P.append(p)
@@ -78,22 +79,16 @@ def evaluate(index,fold,checkpoint,model_type='lstm_one_layer',path_to_load_from
 		#print result.values()
 		errors += len(t[0])
 		N += yte.shape[0]
-	
+
 	P = np.array(P)
 	Y = np.array(Y)
 	Time_before_maneuver = np.array(Time_before_maneuver)
 	[conMat,p_mat,re_mat,time_mat] = confusionMat(P,Y,Time_before_maneuver)
 	return conMat,p_mat,re_mat,time_mat
 
-def load_rnn(index,fold,checkpoint):
-	path_to_dataset = '/scr/ashesh/brain4cars/dataset/{0}'.format(fold)
-	path_to_checkpoints = '/scr/ashesh/brain4cars/checkpoints/{0}'.format(fold)
-	rnn = load('{2}/{0}/checkpoint.{1}'.format(index,checkpoint,path_to_checkpoints))
-	return rnn
-
 if __name__ == '__main__':
-	index = sys.argv[1]	
-	fold = sys.argv[2]	
+	index = sys.argv[1]
+	fold = sys.argv[2]
 	checkpoint = sys.argv[3]
 	[conMat,p_mat,re_mat,time_mat] = evaluate(index,fold,checkpoint)
 	print conMat

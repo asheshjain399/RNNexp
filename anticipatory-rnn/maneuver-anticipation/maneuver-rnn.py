@@ -19,13 +19,16 @@ if __name__ == '__main__':
 
     index = sys.argv[1]
     fold = sys.argv[2]
+
     pwd = os.getcwd()
-    path_to_dataset = 'pwd/dataset/{0}'.format(fold)
-    path_to_checkpoints = 'pwd/checkpoints/{0}'.format(fold)
+    path_to_dataset = '%s/checkpoints/all/%s' % (pwd, fold)
+    path_to_checkpoints = '%s/checkpoints/all/%s' % (pwd, fold)
+
     test_data = cPickle.load(
         open('{1}/test_data_{0}.pik'.format(index, path_to_dataset)))
     Y_te = test_data['labels']
     X_te = test_data['features']
+
     actions = []
     if 'actions' in test_data:
         actions = test_data['actions']
@@ -100,8 +103,7 @@ if __name__ == '__main__':
             road_features_dimension = 4
 
             layers_1 = [TemporalInputFeatures(road_features_dimension)]
-            layers_2 = [TemporalInputFeatures(
-                        inputD - road_features_dimension),
+            layers_2 = [TemporalInputFeatures(inputD-road_features_dimension),
                         LSTM('tanh', 'sigmoid', 'orthogonal', 4, 64, None)]
             output_layer = [simpleRNN(
                             'tanh',
@@ -118,8 +120,9 @@ if __name__ == '__main__':
                                        Adagrad())
 
             rnn.fitModel([X_tr[:, :, (inputD-road_features_dimension):],
-                         X_tr[:, :, :inputD-road_features_dimension]],
-                         Y_tr, 1, '%s %s' % (index, path_to_checkpoints),
+                          X_tr[:, :, :inputD-road_features_dimension]],
+                         Y_tr, 1,
+                         '{1}/{0}/'.format(index, path_to_checkpoints),
                          epochs,
                          batch_size,
                          learning_rate_decay,
