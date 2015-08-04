@@ -40,11 +40,14 @@ checkpoints_params = np.append(np.arange(200, 599, 50), 599)
 
 thresh_params = np.arange(.6, .9, .01)
 
+#checkpoints_params = np.array([300,500])
+
+#thresh_params = np.array([0.6,0.8])
 
 
 #global count_th, count_fold, results_mat_precision, results_mat_recall, results_mat_time 
 
-checkpoint_dir = '/scr/ashesh/brain4cars/checkpoints'
+checkpoint_dir = 'checkpoints'
 
 results_mat_precision = np.zeros((thresh_params.shape[0],checkpoints_params.shape[0],len(folds)+1))
 results_mat_recall = np.zeros((thresh_params.shape[0],checkpoints_params.shape[0],len(folds)+1))
@@ -54,15 +57,15 @@ count_th = 0
 for th in thresh_params:
 	
 	print "Generating results for threshold={0}".format(th)
-	with open('settings.py','w') as f:
-		f.write('OUTPUT_THRESH = %f \n' % th)
 
 	count_fold = 0
 	for fold in folds:
 		count_checkpoint = 0
 		threads=[]
 		for checkpoint in checkpoints_params:
-			
+			with open('settings.py','w') as f:
+				f.write('OUTPUT_THRESH = %f \n' % th)
+		
 			path_to_dataset = 'checkpoints/{0}/{1}/test_data_{2}.pik'.format(maneuver_type,fold,index)
 			path_to_checkpoint = '{0}/{1}/{2}/checkpoint.{3}'.format(checkpoint_dir,fold,index,checkpoint)
 			
