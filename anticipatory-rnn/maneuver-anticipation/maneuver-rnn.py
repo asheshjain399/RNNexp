@@ -19,10 +19,11 @@ if __name__ == '__main__':
 
     index = sys.argv[1]
     fold = sys.argv[2]
+    maneuver_type = sys.argv[3]
 
     pwd = os.getcwd()
-    path_to_dataset = '%s/checkpoints/all/%s' % (pwd, fold)
-    path_to_checkpoints = '%s/checkpoints/all/%s' % (pwd, fold)
+    path_to_dataset = '%s/checkpoints/%s/%s' % (pwd, maneuver_type, fold)
+    path_to_checkpoints = '%s/checkpoints/%s/%s' % (pwd, maneuver_type, fold)
 
     test_data = cPickle.load(
         open('{1}/test_data_{0}.pik'.format(index, path_to_dataset)))

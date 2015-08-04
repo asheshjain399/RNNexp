@@ -12,13 +12,10 @@ from utils import confusionMat
 from predictions import predictManeuver,predictLastTimeManeuver
 import sys
 
-def evaluate(index,fold,checkpoint,model_type='lstm_one_layer',path_to_load_from=''):
+def evaluate(index,fold,checkpoint,model_type='lstm_one_layer',maneuver_type=''):
 	pwd = os.getcwd()
-	path_to_dataset = '%s/checkpoints/all/%s' % (pwd, fold)
-	path_to_checkpoints = '%s/checkpoints/all/%s' % (pwd, fold)
-
-	if len(path_to_load_from) > 0:
-		path_to_dataset = path_to_load_from
+	path_to_dataset = '%s/checkpoints/%s/%s' % (pwd, maneuver_type, fold)
+	path_to_checkpoints = '%s/checkpoints/%s/%s' % (pwd, maneuver_type, fold)
 
 	test_data = cPickle.load(open('{1}/test_data_{0}.pik'.format(index,path_to_dataset)))
 
@@ -33,15 +30,9 @@ def evaluate(index,fold,checkpoint,model_type='lstm_one_layer',path_to_load_from
 	# Prediction
 	rnn = []
 	if model_type == 'multipleRNNs':
-		if len(path_to_load_from) > 0:
-			rnn = loadMultipleRNNsCombined('{0}/checkpoint.{1}'.format(path_to_load_from,checkpoint))
-		else:
-			rnn = loadMultipleRNNsCombined('{2}/{0}/checkpoint.{1}'.format(index,checkpoint,path_to_checkpoints))
+		rnn = loadMultipleRNNsCombined('{2}/{0}/checkpoint.{1}'.format(index,checkpoint,path_to_checkpoints))
 	else:
-		if len(path_to_load_from) > 0:
-			rnn = load('{0}/checkpoint.{1}'.format(path_to_load_from,checkpoint))
-		else:
-			rnn = load('{2}/{0}/checkpoint.{1}'.format(index,checkpoint,path_to_checkpoints))
+		rnn = load('{2}/{0}/checkpoint.{1}'.format(index,checkpoint,path_to_checkpoints))
 
 	predictions = []
 	errors = 0
