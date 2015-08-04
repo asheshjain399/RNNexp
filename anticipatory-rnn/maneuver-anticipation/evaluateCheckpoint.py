@@ -11,7 +11,7 @@ import cPickle
 from utils import confusionMat
 from predictions import predictManeuver,predictLastTimeManeuver
 import sys
-
+import copy
 
 
 def evaluate(path_to_dataset,path_to_checkpoint,model_type='multipleRNNs'):
@@ -70,7 +70,81 @@ def evaluate(path_to_dataset,path_to_checkpoint,model_type='multipleRNNs'):
 	
 	P = np.array(P)
 	Y = np.array(Y)
+
 	Time_before_maneuver = np.array(Time_before_maneuver)
 	[conMat,p_mat,re_mat,time_mat] = confusionMat(P,Y,Time_before_maneuver)
 	return conMat,p_mat,re_mat,time_mat
+
+def evaluateForAllThresholds(path_to_dataset,path_to_checkpoint,thresh_params,model_type='multipleRNNs'):
+	test_data = cPickle.load(open(path_to_dataset))	
+	Y_te = test_data['labels']
+	X_te = test_data['features']
+	actions = []
+	if test_data.has_key('actions'):
+		actions = test_data['actions']
+	else:
+		actions = ['end_action','lchange','rchange','lturn','rturn']
+
+	rnn = []
+	if model_type == 'multipleRNNs':
+			rnn = loadMultipleRNNsCombined(path_to_checkpoint)
+	else:
+			rnn = load(path_to_checkpoint)
+
+	precision = []
+	recall = []
+	time_before_maneuver = []
+
+	for th in thresh_params:
+		with open('settings.py','w') as f:
+			f.write('OUTPUT_THRESH = %f \n' % th)
+		print "Generating results for th= ",th
+		predictions = []
+		errors = 0
+		N = 0
+		P = []
+		Y = []
+		Time_before_maneuver = []
+
+		for xte,yte in zip(X_te,Y_te):
+			inputD = xte.shape[2]
+			road_feature_dimension = 4
+			prediction = []
+
+			if model_type == 'multipleRNNs':
+				prediction = rnn.predict_output([xte[:,:,(inputD-road_feature_dimension):],xte[:,:,:(inputD-road_feature_dimension)]],OutputActionThresh)
+				#[:,:,:(inputD-road_feature_dimension)]
+			else:
+				prediction = rnn.predict_output(xte,OutputActionThresh)
+
+			#print prediction.T
+			predictions.append(prediction)
+			t = np.nonzero(yte-prediction)
+		
+			# Label 0 is the dummy label. Currently maneuvers are labeled [1..n]	
+			prediction = prediction[:,0]
+			yte_ = copy.deepcopy(yte)
+			actual = yte_[:,0]
+			prediction[prediction>0] -= 1
+			actual[actual>0] -= 1
+			
+			p,anticipation_time = predictManeuver(prediction,actions)
+			y = actual[-1]
+			P.append(p)
+			Y.append(y)
+			Time_before_maneuver.append(anticipation_time)
+			result = {'actual':y,'prediction':p,'timeseries':list(prediction)}
+			#print result.values()
+			errors += len(t[0])
+			N += yte.shape[0]
+		
+		P = np.array(P)
+		Y = np.array(Y)
+		Time_before_maneuver = np.array(Time_before_maneuver)
+		[conMat,p_mat,re_mat,time_mat] = confusionMat(P,Y,Time_before_maneuver)
+		precision.append(np.mean(np.diag(p_mat)[1:]))
+		recall.append(np.mean(np.diag(re_mat)[1:]))
+		time_before_maneuver.append(np.mean(  np.divide(np.diag(time_mat)[1:],np.diag(conMat)[1:])   ))
+
+	return np.array(precision),np.array(recall),np.array(time_before_maneuver)
 

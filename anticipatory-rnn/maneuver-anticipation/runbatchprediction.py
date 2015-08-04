@@ -2,7 +2,7 @@ import numpy as np
 import sys
 import cPickle
 import threading
-from evaluateCheckpoint import evaluate
+from evaluateCheckpoint import evaluate, evaluateForAllThresholds
 
 '''
 def worker_thread(path_to_checkpoint,path_to_dataset,checkpoint,checkpoints_params):
@@ -46,59 +46,47 @@ thresh_params = np.arange(.6, .9, .01)
 
 
 #global count_th, count_fold, results_mat_precision, results_mat_recall, results_mat_time 
-
-checkpoint_dir = 'checkpoints'
+checkpoint_dir = '/scr/ashesh/brain4cars/checkpoints'
+#checkpoint_dir = 'checkpoints'
 
 results_mat_precision = np.zeros((thresh_params.shape[0],checkpoints_params.shape[0],len(folds)+1))
 results_mat_recall = np.zeros((thresh_params.shape[0],checkpoints_params.shape[0],len(folds)+1))
 results_mat_time = np.zeros((thresh_params.shape[0],checkpoints_params.shape[0],len(folds)+1))
 
 count_th = 0
-for th in thresh_params:
-	
-	print "Generating results for threshold={0}".format(th)
-
-	count_fold = 0
-	for fold in folds:
-		count_checkpoint = 0
-		threads=[]
-		for checkpoint in checkpoints_params:
-			with open('settings.py','w') as f:
-				f.write('OUTPUT_THRESH = %f \n' % th)
+count_fold = 0
+for fold in folds:
+	count_checkpoint = 0
+	threads=[]
+	for checkpoint in checkpoints_params:
+		path_to_dataset = 'checkpoints/{0}/{1}/test_data_{2}.pik'.format(maneuver_type,fold,index)
+		path_to_checkpoint = '{0}/{1}/{2}/checkpoint.{3}'.format(checkpoint_dir,fold,index,checkpoint)
 		
-			path_to_dataset = 'checkpoints/{0}/{1}/test_data_{2}.pik'.format(maneuver_type,fold,index)
-			path_to_checkpoint = '{0}/{1}/{2}/checkpoint.{3}'.format(checkpoint_dir,fold,index,checkpoint)
-			
-			#t = threading.Thread(target=worker_thread, args=(path_to_checkpoint,path_to_dataset,checkpoint,checkpoints_params,)) 
-			#threads.append(t)
-			
-			[conMat,p_mat,re_mat,time_mat] = evaluate(path_to_dataset,path_to_checkpoint)
-			precision = np.mean(np.diag(p_mat)[1:])
-			recall = np.mean(np.diag(re_mat)[1:])
-			anticipation_time = np.mean(  np.divide(np.diag(time_mat)[1:],np.diag(conMat)[1:])   )
-			results_mat_precision[count_th,count_checkpoint,count_fold] = precision
-			results_mat_recall[count_th,count_checkpoint,count_fold] = recall
-			results_mat_time[count_th,count_checkpoint,count_fold] = anticipation_time
+		#t = threading.Thread(target=worker_thread, args=(path_to_checkpoint,path_to_dataset,checkpoint,checkpoints_params,)) 
+		#threads.append(t)
 		
-			count_checkpoint += 1
-			
-			'''
-			threads[-1].start()
-			print 'starting thread'
-			'''
-		'''	
-		for t in threads:
-			t.join()
-			print 'joining'
+		precision,recall,anticipation_time = evaluateForAllThresholds(path_to_dataset,path_to_checkpoint,thresh_params)
+		results_mat_precision[:,count_checkpoint,count_fold] = precision
+		results_mat_recall[:,count_checkpoint,count_fold] = recall
+		results_mat_time[:,count_checkpoint,count_fold] = anticipation_time
+		count_checkpoint += 1
+		
 		'''
+		threads[-1].start()
+		print 'starting thread'
+		'''
+	'''	
+	for t in threads:
+		t.join()
+		print 'joining'
+	'''
 
-		count_fold += 1
-	
+	count_fold += 1
+
+for count_th in range(len(thresh_params)):
 	results_mat_recall[count_th,:,-1] = np.mean(results_mat_recall[count_th,:,:-1],axis=1)
 	results_mat_precision[count_th,:,-1] = np.mean(results_mat_precision[count_th,:,:-1],axis=1)
 	results_mat_time[count_th,:,-1] = np.mean(results_mat_time[count_th,:,:-1],axis=1)
-
-	count_th += 1
 	
 results = {}
 results['precision'] = results_mat_precision
