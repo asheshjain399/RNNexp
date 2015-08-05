@@ -1,4 +1,4 @@
-*How to train you model?
+#How to train you model?
 
 You maneuver-rnn.py to train you model. 
 
