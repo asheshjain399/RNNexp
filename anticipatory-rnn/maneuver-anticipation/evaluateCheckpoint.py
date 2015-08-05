@@ -15,6 +15,15 @@ import copy
 
 
 def evaluate(path_to_dataset,path_to_checkpoint,model_type='multipleRNNs'):
+	'''
+	Input: 
+	path_to_dataset: Complete path to the pickle file containing data
+	path_to_checkpoint: Complete path to the checkpoint to evaluate at
+	model_type: the kind of model to load. This is the same model using which the checkpoint was created
+
+	Before running this function make sure that the threshold at which you want to evaluate is written in settings.py file. 
+	'''
+
 	test_data = cPickle.load(open(path_to_dataset))	
 	Y_te = test_data['labels']
 	X_te = test_data['features']
@@ -76,6 +85,15 @@ def evaluate(path_to_dataset,path_to_checkpoint,model_type='multipleRNNs'):
 	return conMat,p_mat,re_mat,time_mat
 
 def evaluateForAllThresholds(path_to_dataset,path_to_checkpoint,thresh_params,model_type='multipleRNNs'):
+	'''
+	Input: 
+	path_to_dataset: Complete path to the pickle file containing data
+	path_to_checkpoint: Complete path to the checkpoint to evaluate at
+	thresh_params: The list of threshold values to  evaluate at
+	model_type: the kind of model to load. This is the same model using which the checkpoint was created
+
+	This function evaluates (data,checkpoint) for all the values of threshold specified in thresh_params
+	'''
 	test_data = cPickle.load(open(path_to_dataset))	
 	Y_te = test_data['labels']
 	X_te = test_data['features']
