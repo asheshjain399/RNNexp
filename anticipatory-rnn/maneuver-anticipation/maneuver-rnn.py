@@ -76,7 +76,7 @@ if __name__ == '__main__':
 		# Creating network layers
 		if architectures[model_type] == 'lstm_one_layer':
 			layers = [TemporalInputFeatures(inputD),LSTM('tanh','sigmoid','orthogonal',4,32,None),softmax(num_classes)]
-			rnn = RNN(layers,softmax_decay_loss,trY,step_size,Adagrad())
+			rnn = RNN(layers,softmax_loss,trY,step_size,Adagrad())
 			rnn.fitModel(X_tr,Y_tr,1,'{1}/{0}/'.format(index,path_to_checkpoints),epochs,batch_size,learning_rate_decay,decay_after)
 
 		elif architectures[model_type] == 'lstm_two_layers':

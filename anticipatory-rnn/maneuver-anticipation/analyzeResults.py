@@ -48,5 +48,5 @@ reverse_list =  np.array(reverse_list[::-1])
 summary = summary[reverse_list,:]
 
 print "[Precision, Recall, F1, Threshold, Checkpoint]"
-print summary
+print summary[:150,:]
 

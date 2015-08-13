@@ -19,3 +19,20 @@ def confusionMat(P,Y,T):
 	precision_confMat = confMat/np.repeat(col_sum,size,axis=1)
 	recall_confMat = confMat/np.repeat(row_sum,size,axis=0)
 	return confMat,precision_confMat,recall_confMat,TimeMat
+
+def writeconfmatTofile(M,filename,labels):
+	f = open(filename,'w')
+	st = ''
+	for l in labels:
+		st += l + ','
+	st = st[:-1] + '\n'	
+	f.write(st)
+
+	for row in M:
+		st = ''
+		for ele in row:
+			st += str(ele) + ','
+		st = st[:-1] + '\n'
+		f.write(st)
+	f.close()
+

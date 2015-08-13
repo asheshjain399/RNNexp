@@ -141,8 +141,8 @@ def multiplyData(features,sample_ratio):
 if __name__=='__main__':
 	global min_length_sequence, use_data_augmentation, extra_samples, copy_start_state, params, actions, use_sample_ratio, fold, prefix
 	use_data_augmentation = True
-	min_length_sequence = 2
-	extra_samples = 12
+	min_length_sequence = 4
+	extra_samples = 4
 	copy_start_state = True
 	use_sample_ratio = True
 	params = {
@@ -152,11 +152,11 @@ if __name__=='__main__':
 		'copy_start_state':copy_start_state,
 		}
 	prefix = sixDigitRandomNum()	
-	#actions = ['end_action','lchange','rchange','lturn','rturn']
+	actions = ['end_action','lchange','rchange','lturn','rturn']
 	#actions = ['end_action','lchange','rchange']
-	actions = ['end_action','lturn','rturn']
+	#actions = ['end_action','lturn','rturn']
 	#folder = '/home/ashesh/project/Brain4Cars/Software/HMMBaseline/observations/all/AIOHMM_I_O/fold_1'
 	folds = ['fold_1','fold_2','fold_3','fold_4','fold_5']
 	for fold in folds:
-		folder = '/scr/ashesh/brain4cars/turns/AIOHMM_I_O/{0}'.format(fold)
+		folder = '/scr/ashesh/brain4cars/all_new_features/AIOHMM_I_O/{0}'.format(fold)
 		createData(folder)

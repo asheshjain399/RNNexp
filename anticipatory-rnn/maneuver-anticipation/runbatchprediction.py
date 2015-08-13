@@ -6,7 +6,7 @@ from evaluateCheckpoint import evaluate, evaluateForAllThresholds
 
 '''
 Input:
-maneuver_type: {all,lane,turns}
+maneuver_type: {all,lane,turns,all_new_features}
 
 Before running this script make sure that the index of dataset, checkpoint_dir, and path_to_dataset are correctly defined.
 
@@ -17,6 +17,9 @@ The user can run analyzeResults.py after this to choose the best threshold and c
 '''
 maneuver_type = sys.argv[1]
 
+architectures = ['lstm_one_layer','lstm_two_layers','multipleRNNs']
+model_type = 2
+
 index = '0'
 
 if maneuver_type == 'all':
@@ -25,6 +28,9 @@ elif maneuver_type == 'lane':
 	index = '723759'
 elif maneuver_type == 'turns':
 	index = '209221'
+elif maneuver_type == 'all_new_features':
+# New features obtained from Avi. AAM features and driver head pose features
+	index = '846483'
 else:
 	print 'Maneuver mis-match'
 
@@ -50,7 +56,7 @@ for fold in folds:
 		path_to_dataset = 'checkpoints/{0}/{1}/test_data_{2}.pik'.format(maneuver_type,fold,index)
 		path_to_checkpoint = '{0}/{1}/{2}/checkpoint.{3}'.format(checkpoint_dir,fold,index,checkpoint)
 		
-		precision,recall,anticipation_time = evaluateForAllThresholds(path_to_dataset,path_to_checkpoint,thresh_params)
+		precision,recall,anticipation_time = evaluateForAllThresholds(path_to_dataset,path_to_checkpoint,thresh_params,architectures[model_type])
 		results_mat_precision[:,count_checkpoint,count_fold] = precision
 		results_mat_recall[:,count_checkpoint,count_fold] = recall
 		results_mat_time[:,count_checkpoint,count_fold] = anticipation_time
