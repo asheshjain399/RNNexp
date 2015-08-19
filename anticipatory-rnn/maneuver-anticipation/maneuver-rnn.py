@@ -3,11 +3,12 @@ import numpy as np
 import theano
 import os
 from theano import tensor as T
-from neuralmodels.utils import permute, load
+from neuralmodels.utils import permute
+from neuralmodels.loadcheckpoint import load
 from neuralmodels.costs import softmax_decay_loss,softmax_loss
-from neuralmodels.models import RNN, MultipleRNNsCombined
+from neuralmodels.models import * #RNN, MultipleRNNsCombined
 from neuralmodels.predictions import OutputMaxProb, OutputSampleFromDiscrete,OutputActionThresh
-from neuralmodels.layers import softmax, simpleRNN, OneHot, LSTM, TemporalInputFeatures
+from neuralmodels.layers import * #softmax, simpleRNN, OneHot, LSTM, TemporalInputFeatures
 from neuralmodels.updates import Adagrad, RMSprop
 import cPickle
 from utils import confusionMat
@@ -75,7 +76,8 @@ if __name__ == '__main__':
 		
 		# Creating network layers
 		if architectures[model_type] == 'lstm_one_layer':
-			layers = [TemporalInputFeatures(inputD),LSTM('tanh','sigmoid','orthogonal',4,32,None),softmax(num_classes)]
+			#layers = [TemporalInputFeatures(inputD),LSTM('tanh','sigmoid','orthogonal',4,32,None),softmax(num_classes)]
+			layers = [TemporalInputFeatures(inputD),BidirectionalRNN(),softmax(num_classes)]
 			rnn = RNN(layers,softmax_loss,trY,step_size,Adagrad())
 			rnn.fitModel(X_tr,Y_tr,1,'{1}/{0}/'.format(index,path_to_checkpoints),epochs,batch_size,learning_rate_decay,decay_after)
 

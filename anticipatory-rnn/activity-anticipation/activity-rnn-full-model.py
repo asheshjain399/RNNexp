@@ -4,9 +4,9 @@ import theano
 import os
 from theano import tensor as T
 from readData import sortActivities
-from neuralmodels.utils import permute, load
+from neuralmodels.utils import permute
 from neuralmodels.costs import softmax_loss
-from neuralmodels.models import RNN, SharedRNN, SharedRNNVectors, SharedRNNOutput
+from neuralmodels.models import * #RNN, SharedRNN, SharedRNNVectors, SharedRNNOutput
 from neuralmodels.predictions import OutputMaxProb, OutputSampleFromDiscrete
 from neuralmodels.layers import softmax, simpleRNN, OneHot, LSTM, TemporalInputFeatures,ConcatenateFeatures,ConcatenateVectors
 import cPickle
@@ -15,6 +15,7 @@ import pdb
 '''
 Joint anticipation OR detection for both human and objects
 '''
+
 def jointModel(num_sub_activities, num_affordances, inputJointFeatures,
 	inputHumanFeatures,inputObjectFeatures):
 
@@ -136,7 +137,7 @@ if __name__ == '__main__':
 
 	architectures = ['detection','anticipation','joint']
 
-	train_for = 2
+	train_for = 0
 	#train_for = 'current_prediction'	
 
 	global rnn

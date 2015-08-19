@@ -52,7 +52,7 @@ def pathToCheckpoint(maneuver_type,model_id,fold,checkpoint):
 
 def F1Plot(maneuver_type,checkpoints,model_id,model_type,dataset_id):
 
-	thresh_params = np.arange(.1, 1.0, .1)
+	thresh_params = np.arange(.15, 1.0, .05)
 	folds = ['fold_1', 'fold_2', 'fold_3', 'fold_4', 'fold_5']
 	F1 = np.zeros((thresh_params.shape[0],len(folds)))
 	fid = 0
@@ -64,12 +64,20 @@ def F1Plot(maneuver_type,checkpoints,model_id,model_type,dataset_id):
 		F1[:,fid] = f1_score
 		fid += 1
 
+	F1 = np.mean(F1,axis=1)
+	st = ''
+	for x in F1:
+		st += str(100.0*x) + ','
+	st = st[:-1]
+
 	print "************************"
 	print "F1-score"
-	print np.mean(F1,axis=1)
+	print F1
+	print st
 	print "Threshold values"
 	print thresh_params
 	print "************************"
+
 
 def getBestResults(maneuver_type,checkpoints,model_id,model_type,dataset_id):
 	folds = ['fold_1', 'fold_2', 'fold_3', 'fold_4', 'fold_5']

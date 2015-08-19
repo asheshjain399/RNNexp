@@ -2,11 +2,12 @@ import numpy as np
 import theano
 import os
 from theano import tensor as T
-from neuralmodels.utils import permute, load, loadMultipleRNNsCombined
+from neuralmodels.loadcheckpoint import load, loadMultipleRNNsCombined
+from neuralmodels.utils import permute
 from neuralmodels.costs import softmax_decay_loss,softmax_loss
-from neuralmodels.models import RNN, MultipleRNNsCombined
+from neuralmodels.models import * #RNN, MultipleRNNsCombined
 from neuralmodels.predictions import OutputMaxProb, OutputSampleFromDiscrete,OutputActionThresh
-from neuralmodels.layers import softmax, simpleRNN, OneHot, LSTM, TemporalInputFeatures
+from neuralmodels.layers import * #softmax, simpleRNN, OneHot, LSTM, TemporalInputFeatures
 import cPickle
 from utils import confusionMat
 from predictions import predictManeuver,predictLastTimeManeuver

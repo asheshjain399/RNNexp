@@ -548,7 +548,7 @@ if __name__ == '__main__':
 	global min_length_sequence, use_data_augmentation, extra_samples, copy_start_state, params, fold, train_activities, test_activities, prefix
 	use_data_augmentation = True
 	min_length_sequence = 4
-	extra_samples = 100
+	extra_samples = 0 #100
 	copy_start_state = True
 	params = {
 		'use_data_augmentation':use_data_augmentation,
