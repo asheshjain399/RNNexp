@@ -11,6 +11,8 @@ from neuralmodels.predictions import OutputMaxProb, OutputSampleFromDiscrete
 from neuralmodels.layers import softmax, simpleRNN, OneHot, LSTM, TemporalInputFeatures,ConcatenateFeatures,ConcatenateVectors
 import cPickle
 import pdb
+import socket as soc
+
 #import activity_prediction_sharedrnn as prediction_met
 '''
 Joint anticipation OR detection for both human and objects
@@ -18,13 +20,15 @@ Joint anticipation OR detection for both human and objects
 
 def jointModel(num_sub_activities, num_affordances, inputJointFeatures,
 	inputHumanFeatures,inputObjectFeatures):
+	lstm_init = 'orthogonal'
+	softmax_init = 'uniform'
 
 	shared_input_layer = TemporalInputFeatures(inputJointFeatures)
-	shared_hidden_layer = LSTM('tanh','sigmoid','allones',4,128)
+	shared_hidden_layer = LSTM('tanh','sigmoid',lstm_init,4,128)
 	#shared_hidden_layer = simpleRNN('tanh','orthogonal',4,128)
 	shared_layers = [shared_input_layer,shared_hidden_layer]
-	human_layers = [ConcatenateFeatures(inputHumanFeatures),LSTM('tanh','sigmoid','allones',4,256),softmax(num_sub_activities)]
-	object_layers = [ConcatenateFeatures(inputObjectFeatures),LSTM('tanh','sigmoid','allones',4,256),softmax(num_affordances)]
+	human_layers = [ConcatenateFeatures(inputHumanFeatures),LSTM('tanh','sigmoid',lstm_init,4,256),softmax(num_sub_activities,softmax_init)]
+	object_layers = [ConcatenateFeatures(inputObjectFeatures),LSTM('tanh','sigmoid',lstm_init,4,256),softmax(num_affordances,softmax_init)]
 
 	trY_1 = T.lmatrix()
 	trY_2 = T.lmatrix()
@@ -86,9 +90,16 @@ def jointModelOutput(num_sub_activities, num_affordances, num_sub_activities_ant
 
 if __name__ == '__main__':
 	index = sys.argv[1]	
-	fold = sys.argv[2]	
-	path_to_dataset = '/scr/ashesh/activity-anticipation/dataset/{0}'.format(fold)
-	path_to_checkpoints = '/scr/ashesh/activity-anticipation/checkpoints/{0}'.format(fold)
+	fold = sys.argv[2]
+	
+	main_path = ''
+	if soc.gethostname() == "napoli110.stanford.edu":
+		main_path = '/scr/ashesh/activity-anticipation'
+	elif soc.gethostname() == "ashesh":
+		main_path = '.'
+	
+	path_to_dataset = '{1}/dataset/{0}'.format(fold,main_path)
+	path_to_checkpoints = '{1}/checkpoints/{0}'.format(fold,main_path)
 
 	if not os.path.exists(path_to_checkpoints):
 		os.mkdir(path_to_checkpoints)

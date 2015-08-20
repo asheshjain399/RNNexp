@@ -12,20 +12,24 @@ from neuralmodels.predictions import OutputMaxProb, OutputSampleFromDiscrete
 from neuralmodels.layers import * #softmax, simpleRNN, OneHot, LSTM, TemporalInputFeatures,ConcatenateFeatures,ConcatenateVectors
 import cPickle
 import pdb
+import socket as soc
 
 def DRAmodel(nodeList,edgeList,edgeFeatures,nodeFeatures,nodeToEdgeConnections):
 	edgeRNNs = {}
 	edgeNames = edgeList
+	lstm_init = 'orthogonal'
+	softmax_init = 'uniform'
+
 	for em in edgeNames:
 		inputJointFeatures = edgeFeatures[em]
-		edgeRNNs[em] = [TemporalInputFeatures(inputJointFeatures),LSTM('tanh','sigmoid','allones',4,128)]
+		edgeRNNs[em] = [TemporalInputFeatures(inputJointFeatures),LSTM('tanh','sigmoid',lstm_init,4,128)]
 
 	nodeRNNs = {}
 	nodeNames = nodeList.keys()
 	nodeLabels = {}
 	for nm in nodeNames:
 		num_classes = nodeList[nm]
-		nodeRNNs[nm] = [LSTM('tanh','sigmoid','allones',4,256),softmax(num_classes)]
+		nodeRNNs[nm] = [LSTM('tanh','sigmoid',lstm_init,4,256),softmax(num_classes,softmax_init)]
 		em = nm+'_input'
 		edgeRNNs[em] = [TemporalInputFeatures(nodeFeatures[nm])]
 		nodeLabels[nm] = T.lmatrix()
@@ -36,8 +40,11 @@ if __name__ == '__main__':
 	index = sys.argv[1]	
 	fold = sys.argv[2]
 	
-	main_path = '/scr/ashesh/activity-anticipation'
-	#main_path = '.'
+	main_path = ''
+	if soc.gethostname() == "napoli110.stanford.edu":
+		main_path = '/scr/ashesh/activity-anticipation'
+	elif soc.gethostname() == "ashesh":
+		main_path = '.'
 			
 	path_to_dataset = '{1}/dataset/{0}'.format(fold,main_path)
 	path_to_checkpoints = '{1}/checkpoints/{0}'.format(fold,main_path)
@@ -81,26 +88,26 @@ if __name__ == '__main__':
 
 	nodeList = {}
 	nodeList['H'] = num_sub_activities
-	#nodeList['O'] = num_affordances
+	nodeList['O'] = num_affordances
 	edgeList = ['HO']
 	edgeFeatures = {}
 	edgeFeatures['HO'] = inputJointFeatures
 	nodeFeatures = {}
 	nodeFeatures['H'] = inputHumanFeatures
-	#nodeFeatures['O'] = inputObjectFeatures
+	nodeFeatures['O'] = inputObjectFeatures
 	nodeToEdgeConnections = {}
 	nodeToEdgeConnections['H'] = {}
 	nodeToEdgeConnections['H']['HO'] = [0,inputJointFeatures]
 	nodeToEdgeConnections['H']['H_input'] = [inputJointFeatures,inputJointFeatures+inputHumanFeatures]
-	#nodeToEdgeConnections['O'] = {}
-	#nodeToEdgeConnections['O']['HO'] = [0,inputJointFeatures]
-	#nodeToEdgeConnections['O']['O_input'] = [inputJointFeatures,inputJointFeatures+inputObjectFeatures]
+	nodeToEdgeConnections['O'] = {}
+	nodeToEdgeConnections['O']['HO'] = [0,inputJointFeatures]
+	nodeToEdgeConnections['O']['O_input'] = [inputJointFeatures,inputJointFeatures+inputObjectFeatures]
 	dra = DRAmodel(nodeList,edgeList,edgeFeatures,nodeFeatures,nodeToEdgeConnections)
 
 	trX = {}
 	trY = {}
 	trX['H'] = np.concatenate((X_tr_human_shared,X_tr_human_disjoint),axis=2)	
 	trY['H'] = Y_tr_human
-	#trX['O'] = np.concatenate((X_tr_objects_shared,X_tr_objects_disjoint),axis=2)	
-	#trY['O'] = Y_tr_objects
+	trX['O'] = np.concatenate((X_tr_objects_shared,X_tr_objects_disjoint),axis=2)	
+	trY['O'] = Y_tr_objects
 	dra.fitModel(trX,trY,1,'{1}/{0}/'.format(index,path_to_checkpoints),10)
