@@ -34,9 +34,13 @@ def DRAmodel(nodeList,edgeList,edgeFeatures,nodeFeatures,nodeToEdgeConnections):
 
 if __name__ == '__main__':
 	index = sys.argv[1]	
-	fold = sys.argv[2]	
-	path_to_dataset = '/scr/ashesh/activity-anticipation/dataset/{0}'.format(fold)
-	path_to_checkpoints = '/scr/ashesh/activity-anticipation/checkpoints/{0}'.format(fold)
+	fold = sys.argv[2]
+	
+	#main_path = '/scr/ashesh/activity-anticipation'
+	main_path = '.'
+			
+	path_to_dataset = '{1}/dataset/{0}'.format(fold,main_path)
+	path_to_checkpoints = '{1}/checkpoints/{0}'.format(fold,main_path)
 
 	if not os.path.exists(path_to_checkpoints):
 		os.mkdir(path_to_checkpoints)
@@ -76,26 +80,26 @@ if __name__ == '__main__':
 
 	nodeList = {}
 	nodeList['H'] = num_sub_activities
-	nodeList['O'] = num_affordances
+	#nodeList['O'] = num_affordances
 	edgeList = ['HO']
 	edgeFeatures = {}
 	edgeFeatures['HO'] = inputJointFeatures
 	nodeFeatures = {}
 	nodeFeatures['H'] = inputHumanFeatures
-	nodeFeatures['O'] = inputObjectFeatures
+	#nodeFeatures['O'] = inputObjectFeatures
 	nodeToEdgeConnections = {}
 	nodeToEdgeConnections['H'] = {}
 	nodeToEdgeConnections['H']['HO'] = [0,inputJointFeatures]
 	nodeToEdgeConnections['H']['H_input'] = [inputJointFeatures,inputJointFeatures+inputHumanFeatures]
-	nodeToEdgeConnections['O'] = {}
-	nodeToEdgeConnections['O']['HO'] = [0,inputJointFeatures]
-	nodeToEdgeConnections['O']['O_input'] = [inputJointFeatures,inputJointFeatures+inputObjectFeatures]
+	#nodeToEdgeConnections['O'] = {}
+	#nodeToEdgeConnections['O']['HO'] = [0,inputJointFeatures]
+	#nodeToEdgeConnections['O']['O_input'] = [inputJointFeatures,inputJointFeatures+inputObjectFeatures]
 	dra = DRAmodel(nodeList,edgeList,edgeFeatures,nodeFeatures,nodeToEdgeConnections)
 
 	trX = {}
 	trY = {}
 	trX['H'] = np.concatenate((X_tr_human_shared,X_tr_human_disjoint),axis=2)	
 	trY['H'] = Y_tr_human
-	trX['O'] = np.concatenate((X_tr_objects_shared,X_tr_objects_disjoint),axis=2)	
-	trY['O'] = Y_tr_objects
+	#trX['O'] = np.concatenate((X_tr_objects_shared,X_tr_objects_disjoint),axis=2)	
+	#trY['O'] = Y_tr_objects
 	dra.fitModel(trX,trY,1,'{1}/{0}/'.format(index,path_to_checkpoints),300)
