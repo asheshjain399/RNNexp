@@ -18,14 +18,14 @@ def DRAmodel(nodeList,edgeList,edgeFeatures,nodeFeatures,nodeToEdgeConnections):
 	edgeNames = edgeList
 	for em in edgeNames:
 		inputJointFeatures = edgeFeatures[em]
-		edgeRNNs[em] = [TemporalInputFeatures(inputJointFeatures),LSTM('tanh','sigmoid','orthogonal',4,128)]
+		edgeRNNs[em] = [TemporalInputFeatures(inputJointFeatures),LSTM('tanh','sigmoid','allones',4,128)]
 
 	nodeRNNs = {}
 	nodeNames = nodeList.keys()
 	nodeLabels = {}
 	for nm in nodeNames:
 		num_classes = nodeList[nm]
-		nodeRNNs[nm] = [LSTM('tanh','sigmoid','orthogonal',4,256),softmax(num_classes)]
+		nodeRNNs[nm] = [LSTM('tanh','sigmoid','allones',4,256),softmax(num_classes)]
 		em = nm+'_input'
 		edgeRNNs[em] = [TemporalInputFeatures(nodeFeatures[nm])]
 		nodeLabels[nm] = T.lmatrix()
@@ -36,8 +36,8 @@ if __name__ == '__main__':
 	index = sys.argv[1]	
 	fold = sys.argv[2]
 	
-	#main_path = '/scr/ashesh/activity-anticipation'
-	main_path = '.'
+	main_path = '/scr/ashesh/activity-anticipation'
+	#main_path = '.'
 			
 	path_to_dataset = '{1}/dataset/{0}'.format(fold,main_path)
 	path_to_checkpoints = '{1}/checkpoints/{0}'.format(fold,main_path)
@@ -78,6 +78,7 @@ if __name__ == '__main__':
 	assert(X_tr_objects_shared.shape[0] == X_tr_objects_disjoint.shape[0])
 	assert(X_tr_objects_shared.shape[1] == X_tr_objects_disjoint.shape[1])
 
+
 	nodeList = {}
 	nodeList['H'] = num_sub_activities
 	#nodeList['O'] = num_affordances
@@ -102,4 +103,4 @@ if __name__ == '__main__':
 	trY['H'] = Y_tr_human
 	#trX['O'] = np.concatenate((X_tr_objects_shared,X_tr_objects_disjoint),axis=2)	
 	#trY['O'] = Y_tr_objects
-	dra.fitModel(trX,trY,1,'{1}/{0}/'.format(index,path_to_checkpoints),300)
+	dra.fitModel(trX,trY,1,'{1}/{0}/'.format(index,path_to_checkpoints),10)

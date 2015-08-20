@@ -20,11 +20,11 @@ def jointModel(num_sub_activities, num_affordances, inputJointFeatures,
 	inputHumanFeatures,inputObjectFeatures):
 
 	shared_input_layer = TemporalInputFeatures(inputJointFeatures)
-	shared_hidden_layer = LSTM('tanh','sigmoid','orthogonal',4,128)
+	shared_hidden_layer = LSTM('tanh','sigmoid','allones',4,128)
 	#shared_hidden_layer = simpleRNN('tanh','orthogonal',4,128)
 	shared_layers = [shared_input_layer,shared_hidden_layer]
-	human_layers = [ConcatenateFeatures(inputHumanFeatures),LSTM('tanh','sigmoid','orthogonal',4,256),softmax(num_sub_activities)]
-	object_layers = [ConcatenateFeatures(inputObjectFeatures),LSTM('tanh','sigmoid','orthogonal',4,256),softmax(num_affordances)]
+	human_layers = [ConcatenateFeatures(inputHumanFeatures),LSTM('tanh','sigmoid','allones',4,256),softmax(num_sub_activities)]
+	object_layers = [ConcatenateFeatures(inputObjectFeatures),LSTM('tanh','sigmoid','allones',4,256),softmax(num_affordances)]
 
 	trY_1 = T.lmatrix()
 	trY_2 = T.lmatrix()
@@ -127,7 +127,7 @@ if __name__ == '__main__':
 	print 'human features dim ',inputHumanFeatures
 	print 'object features dim ',inputObjectFeatures
 
-	epochs = 400
+	epochs = 10
 	batch_size = X_tr_human_disjoint.shape[1]
 	learning_rate_decay = 0.97
 	decay_after = 5
