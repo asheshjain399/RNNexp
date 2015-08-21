@@ -3,9 +3,7 @@ import numpy as np
 import theano
 import os
 from theano import tensor as T
-from readData import sortActivities
 from neuralmodels.utils import permute 
-from neuralmodels.updates import *
 from neuralmodels.loadcheckpoint import *
 from neuralmodels.costs import softmax_loss
 from neuralmodels.models import * #RNN, SharedRNN, SharedRNNVectors, SharedRNNOutput
@@ -15,7 +13,7 @@ import cPickle
 import pdb
 import socket as soc
 
-def DRAmodel(nodeList,edgeList,edgeFeatures,nodeFeatures,nodeToEdgeConnections,clipnorm=25.0):
+def DRAmodel(nodeList,edgeList,edgeFeatures,nodeFeatures,nodeToEdgeConnections,clipnorm=0.0):
 	edgeRNNs = {}
 	edgeNames = edgeList
 	lstm_init = 'orthogonal'
@@ -23,22 +21,90 @@ def DRAmodel(nodeList,edgeList,edgeFeatures,nodeFeatures,nodeToEdgeConnections,c
 
 	for em in edgeNames:
 		inputJointFeatures = edgeFeatures[em]
-		edgeRNNs[em] = [TemporalInputFeatures(inputJointFeatures),LSTM('tanh','sigmoid',lstm_init,4,128)]
+		edgeRNNs[em] = [TemporalInputFeatures(inputJointFeatures),
+				RNN('rectify','uniform',size=500,temporal_connection=False),
+				RNN('rectify','uniform',size=500,temporal_connection=False),
+				LSTM('tanh','sigmoid',lstm_init,100,1000),
+				LSTM('tanh','sigmoid',lstm_init,100,1000)
+				]
 
 	nodeRNNs = {}
 	nodeNames = nodeList.keys()
 	nodeLabels = {}
 	for nm in nodeNames:
 		num_classes = nodeList[nm]
-		nodeRNNs[nm] = [LSTM('tanh','sigmoid',lstm_init,4,256),softmax(num_classes,softmax_init)]
+		nodeRNNs[nm] = [LSTM('tanh','sigmoid',lstm_init,100,1000),
+				RNN('rectify','uniform',size=500,temporal_connection=False),
+				RNN('rectify','uniform',size=100,temporal_connection=False),
+				RNN('rectify','uniform',size=54,temporal_connection=False),
+				softmax(num_classes,softmax_init)
+				]
 		em = nm+'_input'
-		edgeRNNs[em] = [TemporalInputFeatures(nodeFeatures[nm])]
+		edgeRNNs[em] = [TemporalInputFeatures(nodeFeatures[nm]),
+				RNN('rectify','uniform',size=500,temporal_connection=False),
+				RNN('rectify','uniform',size=500,temporal_connection=False),
+				]
 		nodeLabels[nm] = T.lmatrix()
 	learning_rate = T.fscalar()
 	dra = DRA(edgeRNNs,nodeRNNs,nodeToEdgeConnections,softmax_loss,nodeLabels,learning_rate,clipnorm)
 	return dra
 
+def readCRFGraph(filename):
+	lines = open(filename).readlines()
+	nodeOrder = []
+	nodeNames = {}
+	nodeList = {}
+	nodeToEdgeConnections = {}
+	nodeFeatures = {}
+	for node_name, node_type in zip(lines[0].strip().split(','),lines[1].strip().split(',')):
+		nodeOrder.append(node_name)
+		nodeNames[node_name] = node_type
+		nodeList[node_type] = 0
+		nodeToEdgeConnections[node_type] = {}
+		nodeToEdgeConnections[node_type][node_type+'_input'] = []
+		nodeFeatures[node_type] = 0
+	
+	edgeList = []
+	edgeFeatures = {}
+	nodeConnections = {}
+	for i in range(2,len(lines)):
+		first_nodeName = nodeOrder[i-2]
+		first_nodeType = nodeNames[first_nodeName]
+		nodeConnections[first_nodeName] = []
+		connections = lines[i].strip().split(',')
+		for j in range(len(connections)):
+			if connections[j] == '1':
+				second_nodeName = nodeOrder[j]
+				second_nodeType = nodeNames[second_nodeName]
+				nodeConnections[first_nodeName].append(second_nodeName)
+		
+				edgeType_1 = first_nodeType + '_' + second_nodeType
+				edgeType_2 = second_nodeType + '_' + first_nodeType
+				edgeType = ''
+				if edgeType_1 in edgeList:
+					edgeType = edgeType_1
+					continue
+				elif edgeType_2 in edgeList:
+					edgeType = edgeType_2
+					continue
+				else:
+					edgeType = edgeType_1
+				edgeList.append(edgeType)
+				edgeFeatures[edgeType] = 0
+				nodeToEdgeConnections[first_nodeType][edgeType] = []
+				nodeToEdgeConnections[second_nodeType][edgeType] = []
+
+	return nodeNames,nodeList,nodeFeatures,nodeConnections,edgeList,edgeFeatures,nodeToEdgeConnections	
+
 if __name__ == '__main__':
+	
+	crf_problem = sys.argv[1]
+
+	crf_file = './CRFProblems/{0}/crf'.format(crf_problem)
+
+	readCRFGraph(crf_file)
+
+	'''
 	index = sys.argv[1]	
 	fold = sys.argv[2]
 	
@@ -113,3 +179,4 @@ if __name__ == '__main__':
 	trX['O'] = np.concatenate((X_tr_objects_shared,X_tr_objects_disjoint),axis=2)	
 	trY['O'] = Y_tr_objects
 	dra.fitModel(trX,trY,1,'{1}/{0}/'.format(index,path_to_checkpoints),10)
+	'''

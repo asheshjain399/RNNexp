@@ -1,0 +1,7 @@
+torso,right_arm,left_arm,right_leg,left_leg
+torso,arm,arm,leg,leg
+0,1,1,1,1
+1,0,1,0,0
+1,1,0,0,0
+1,0,0,0,1
+1,0,0,1,0
