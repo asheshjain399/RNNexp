@@ -5,15 +5,57 @@ import os
 from theano import tensor as T
 from neuralmodels.utils import permute 
 from neuralmodels.loadcheckpoint import *
-from neuralmodels.costs import softmax_loss
-from neuralmodels.models import * #RNN, SharedRNN, SharedRNNVectors, SharedRNNOutput
+from neuralmodels.costs import softmax_loss, euclidean_loss
+from neuralmodels.models import * 
 from neuralmodels.predictions import OutputMaxProb, OutputSampleFromDiscrete
-from neuralmodels.layers import * #softmax, simpleRNN, OneHot, LSTM, TemporalInputFeatures,ConcatenateFeatures,ConcatenateVectors
+from neuralmodels.layers import * 
 import cPickle
 import pdb
 import socket as soc
+import copy
 
-def DRAmodel(nodeList,edgeList,edgeFeatures,nodeFeatures,nodeToEdgeConnections,clipnorm=0.0):
+global rng
+rng = np.random.RandomState(1234567890)
+
+def DRAmodelRegression(nodeList,edgeList,edgeFeatures,nodeFeatures,nodeToEdgeConnections,clipnorm=0.0):
+
+	edgeRNNs = {}
+	edgeNames = edgeList
+	lstm_init = 'orthogonal'
+
+	for em in edgeNames:
+		inputJointFeatures = edgeFeatures[em]
+		edgeRNNs[em] = [TemporalInputFeatures(inputJointFeatures),
+				AddNoiseToInput(rng=rng),
+				simpleRNN('rectify','uniform',size=500,temporal_connection=False,rng=rng),
+				simpleRNN('linear','uniform',size=500,temporal_connection=False,rng=rng),
+				LSTM('tanh','sigmoid',lstm_init,100,1000,rng=rng),
+				LSTM('tanh','sigmoid',lstm_init,100,1000,rng=rng)
+				]
+
+	nodeRNNs = {}
+	nodeNames = nodeList.keys()
+	nodeLabels = {}
+	for nm in nodeNames:
+		num_classes = nodeList[nm]
+		nodeRNNs[nm] = [LSTM('tanh','sigmoid',lstm_init,100,1000,rng=rng),
+				simpleRNN('rectify','uniform',size=500,temporal_connection=False,rng=rng),
+				simpleRNN('rectify','uniform',size=100,temporal_connection=False,rng=rng),
+				simpleRNN('linear','uniform',size=num_classes,temporal_connection=False,rng=rng),
+				]
+		em = nm+'_input'
+		edgeRNNs[em] = [TemporalInputFeatures(nodeFeatures[nm]),
+				AddNoiseToInput(rng=rng),
+				simpleRNN('rectify','uniform',size=500,temporal_connection=False,rng=rng),
+				simpleRNN('linear','uniform',size=500,temporal_connection=False,rng=rng),
+				]
+		nodeLabels[nm] = T.tensor3(dtype=theano.config.floatX)
+	learning_rate = T.scalar(dtype=theano.config.floatX)
+	dra = DRA(edgeRNNs,nodeRNNs,nodeToEdgeConnections,euclidean_loss,nodeLabels,learning_rate,clipnorm)
+	return dra
+
+def DRAmodelClassification(nodeList,edgeList,edgeFeatures,nodeFeatures,nodeToEdgeConnections,clipnorm=0.0):
+
 	edgeRNNs = {}
 	edgeNames = edgeList
 	lstm_init = 'orthogonal'
@@ -22,10 +64,11 @@ def DRAmodel(nodeList,edgeList,edgeFeatures,nodeFeatures,nodeToEdgeConnections,c
 	for em in edgeNames:
 		inputJointFeatures = edgeFeatures[em]
 		edgeRNNs[em] = [TemporalInputFeatures(inputJointFeatures),
-				RNN('rectify','uniform',size=500,temporal_connection=False),
-				RNN('rectify','uniform',size=500,temporal_connection=False),
-				LSTM('tanh','sigmoid',lstm_init,100,1000),
-				LSTM('tanh','sigmoid',lstm_init,100,1000)
+				AddNoiseToInput(rng=rng),
+				simpleRNN('rectify','uniform',size=500,temporal_connection=False,rng=rng),
+				simpleRNN('rectify','uniform',size=500,temporal_connection=False,rng=rng),
+				LSTM('tanh','sigmoid',lstm_init,100,1000,rng=rng),
+				LSTM('tanh','sigmoid',lstm_init,100,1000,rng=rng)
 				]
 
 	nodeRNNs = {}
@@ -33,16 +76,17 @@ def DRAmodel(nodeList,edgeList,edgeFeatures,nodeFeatures,nodeToEdgeConnections,c
 	nodeLabels = {}
 	for nm in nodeNames:
 		num_classes = nodeList[nm]
-		nodeRNNs[nm] = [LSTM('tanh','sigmoid',lstm_init,100,1000),
-				RNN('rectify','uniform',size=500,temporal_connection=False),
-				RNN('rectify','uniform',size=100,temporal_connection=False),
-				RNN('rectify','uniform',size=54,temporal_connection=False),
-				softmax(num_classes,softmax_init)
+		nodeRNNs[nm] = [LSTM('tanh','sigmoid',lstm_init,100,1000,rng=rng),
+				simpleRNN('rectify','uniform',size=500,temporal_connection=False,rng=rng),
+				simpleRNN('rectify','uniform',size=100,temporal_connection=False,rng=rng),
+				simpleRNN('rectify','uniform',size=54,temporal_connection=False,rng=rng),
+				softmax(num_classes,softmax_init,rng=rng)
 				]
 		em = nm+'_input'
 		edgeRNNs[em] = [TemporalInputFeatures(nodeFeatures[nm]),
-				RNN('rectify','uniform',size=500,temporal_connection=False),
-				RNN('rectify','uniform',size=500,temporal_connection=False),
+				AddNoiseToInput(rng=rng),
+				simpleRNN('rectify','uniform',size=500,temporal_connection=False,rng=rng),
+				simpleRNN('rectify','uniform',size=500,temporal_connection=False,rng=rng),
 				]
 		nodeLabels[nm] = T.lmatrix()
 	learning_rate = T.fscalar()
@@ -61,7 +105,7 @@ def readCRFGraph(filename):
 		nodeNames[node_name] = node_type
 		nodeList[node_type] = 0
 		nodeToEdgeConnections[node_type] = {}
-		nodeToEdgeConnections[node_type][node_type+'_input'] = []
+		nodeToEdgeConnections[node_type][node_type+'_input'] = [0,0]
 		nodeFeatures[node_type] = 0
 	
 	edgeList = []
@@ -91,8 +135,52 @@ def readCRFGraph(filename):
 					edgeType = edgeType_1
 				edgeList.append(edgeType)
 				edgeFeatures[edgeType] = 0
-				nodeToEdgeConnections[first_nodeType][edgeType] = []
-				nodeToEdgeConnections[second_nodeType][edgeType] = []
+				nodeToEdgeConnections[first_nodeType][edgeType] = [0,0]
+				nodeToEdgeConnections[second_nodeType][edgeType] = [0,0]
+
+	trX = {}
+	trY = {}
+	for nodeType in nodeList:
+		trX[nodeType] = {}
+		trY[nodeType] = {}
+
+	for nodeName in nodeNames.keys():
+		edge_features = {}
+		nodeType = nodeNames[nodeName]
+		edgeTypesConnectedTo = nodeToEdgeConnections[nodeType].keys()
+		low = 0
+		high = 0
+
+		for edgeType in edgeTypesConnectedTo:
+			edge_features[edgeType] = getFeatures(nodeName,edgeType)
+
+		edgeType = nodeType + '_input'
+		D = edge_features[edgeType].shape[2]
+		nodeFeatures[nodeType] = D
+		high += D
+		nodeToEdgeConnections[nodeType][edgeType][0] = low
+		nodeToEdgeConnections[nodeType][edgeType][1] = high
+		low = high
+		nodeRNNFeatures = copy.deepcopy(edge_features[edgeType])
+
+		for edgeType in edgeList:
+			if edgeType not in edgeTypesConnectedTo:
+				continue
+			D = edge_features[edgeType].shape[2]
+			edgeFeatures[edgeType] = D
+			high += D
+			nodeToEdgeConnections[nodeType][edgeType][0] = low
+			nodeToEdgeConnections[nodeType][edgeType][1] = high
+			low = high
+			nodeRNNFeatures = np.concatenate((nodeRNNFeatures,edge_features[edgeType]),axis=2)
+		
+		Y,num_classes = getLabels(nodeName)
+		nodeList[nodeType] = num_classes
+		
+		trX[nodeType][nodeName] = nodeRNNFeatures
+		trY[nodeType][nodeName] = Y
+
+		print nodeToEdgeConnections
 
 	return nodeNames,nodeList,nodeFeatures,nodeConnections,edgeList,edgeFeatures,nodeToEdgeConnections	
 

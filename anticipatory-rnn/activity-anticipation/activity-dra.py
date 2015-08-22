@@ -20,19 +20,24 @@ def DRAmodel(nodeList,edgeList,edgeFeatures,nodeFeatures,nodeToEdgeConnections,c
 	edgeNames = edgeList
 	lstm_init = 'orthogonal'
 	softmax_init = 'uniform'
+	
+	rng = np.random.RandomState(1234567890)
 
 	for em in edgeNames:
 		inputJointFeatures = edgeFeatures[em]
-		edgeRNNs[em] = [TemporalInputFeatures(inputJointFeatures),LSTM('tanh','sigmoid',lstm_init,4,128)]
+		edgeRNNs[em] = [TemporalInputFeatures(inputJointFeatures),LSTM('tanh','sigmoid',lstm_init,4,128,rng=rng)]
 
 	nodeRNNs = {}
 	nodeNames = nodeList.keys()
 	nodeLabels = {}
 	for nm in nodeNames:
 		num_classes = nodeList[nm]
-		nodeRNNs[nm] = [LSTM('tanh','sigmoid',lstm_init,4,256),softmax(num_classes,softmax_init)]
+		nodeRNNs[nm] = [LSTM('tanh','sigmoid',lstm_init,4,256,rng=rng),softmax(num_classes,softmax_init,rng=rng)]
 		em = nm+'_input'
-		edgeRNNs[em] = [TemporalInputFeatures(nodeFeatures[nm])]
+		if nm == 'H':
+			edgeRNNs[em] = [TemporalInputFeatures(nodeFeatures[nm]),AddNoiseToInput(rng=rng)]
+		else:
+			edgeRNNs[em] = [TemporalInputFeatures(nodeFeatures[nm])]
 		nodeLabels[nm] = T.lmatrix()
 	learning_rate = T.fscalar()
 	dra = DRA(edgeRNNs,nodeRNNs,nodeToEdgeConnections,softmax_loss,nodeLabels,learning_rate,clipnorm)
@@ -112,4 +117,4 @@ if __name__ == '__main__':
 	trY['H'] = Y_tr_human
 	trX['O'] = np.concatenate((X_tr_objects_shared,X_tr_objects_disjoint),axis=2)	
 	trY['O'] = Y_tr_objects
-	dra.fitModel(trX,trY,1,'{1}/{0}/'.format(index,path_to_checkpoints),10)
+	dra.fitModel(trX,trY,1,'{1}/{0}/'.format(index,path_to_checkpoints),epochs=10,std=2.0)
