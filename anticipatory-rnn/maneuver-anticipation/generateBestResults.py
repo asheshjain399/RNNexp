@@ -105,8 +105,8 @@ def getBestResults(maneuver_type,checkpoints,model_id,model_type,dataset_id):
 			if len(conMat[k]) == 0:
 				continue
 			p_,r_,t_ = getResults(conMat[k],p_mat[k],re_mat[k],time_mat[k])
-			precision[k].append(p_)
-			recall[k].append(r_)
+			precision[k].append(100.0*p_)
+			recall[k].append(100.0*r_)
 			anticipation_time[k].append(t_)
 			if len(p_confMat[k]) == 0:
 				p_confMat[k] = p_mat[k]
@@ -136,16 +136,16 @@ def getBestResults(maneuver_type,checkpoints,model_id,model_type,dataset_id):
 		re = np.mean(recall[k])
 		ant_time = np.mean(anticipation_time[k])
 
-		pr_std = np.std(precision[k])
-		re_std = np.std(recall[k])
+		pr_std_err = np.std(precision[k])/np.sqrt(len(precision[k]))
+		re_std_err = np.std(recall[k])/np.sqrt(len(precision[k]))
 		ant_time_std = np.std(anticipation_time[k])
 
 		f1 = 2.0*pr*re/(pr+re)
 		F1_list.append(f1)
-
+	print precision['best']
 	print "****************"
 	print "Best results"
-	print "Pr={0:.4f}({1:.4f})  Re={2:.4f}({3:.4f}) t={4:.4f}({5:.4f})".format(pr,pr_std,re,re_std,ant_time,ant_time_std)
+	print "Pr={0:.4f}({1:.4f})  Re={2:.4f}({3:.4f}) t={4:.4f}({5:.4f})".format(pr,pr_std_err,re,re_std_err,ant_time,ant_time_std)
 	print "****************"
 	print "F1-score by varying time to maneuver"
 	print F1_list[:-1]
