@@ -17,6 +17,13 @@ import copy
 global rng
 rng = np.random.RandomState(1234567890)
 
+'''
+Understanding data structures
+nodeToEdgeConnections: node_type ---> [edge_types]
+nodeConnections: node_name ---> [node_names]
+nodeList: node_name ---> node_type
+'''
+
 def DRAmodelRegression(nodeList,edgeList,edgeFeatures,nodeFeatures,nodeToEdgeConnections,clipnorm=0.0):
 
 	edgeRNNs = {}
