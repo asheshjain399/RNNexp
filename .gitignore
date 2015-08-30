@@ -75,4 +75,4 @@ target/
 */MocapToolbox/python/*
 */MocapToolbox/old_python/*
 */MocapToolbox/oldmatlab/*
-
+*/crf_to_rnn/CRFProblems/datasets/*
