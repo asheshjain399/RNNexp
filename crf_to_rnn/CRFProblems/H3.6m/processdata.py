@@ -9,15 +9,15 @@ allSubjects = ['S1','S6','S7','S8','S9','S11','S5']
 
 actions =['directions','discussion','eating','greeting','phoning','posing','purchases','sitting','sittingdown','smoking','takingphoto','waiting','walking','walkingdog','walkingtogether']
 subactions=['1','2']
-path_to_dataset = ''
+path_to_dataset = '/home/ashesh/Downloads/dataset'
 
-nodeFeatures={}
-nodeFeatures['torso'] = range(6)
-nodeFeatures['torso'] = nodeFeatures['torso'].extend(range(36,51))
-nodeFeatures['right_arm'] = range(75,99)
-nodeFeatures['left_arm'] = range(51,75)
-nodeFeatures['right_leg'] = range(6,21)
-nodeFeatures['left_leg'] = range(21,36)
+nodeFeaturesRanges={}
+nodeFeaturesRanges['torso'] = range(6)
+nodeFeaturesRanges['torso'].extend(range(36,51))
+nodeFeaturesRanges['right_arm'] = range(75,99)
+nodeFeaturesRanges['left_arm'] = range(51,75)
+nodeFeaturesRanges['right_leg'] = range(6,21)
+nodeFeaturesRanges['left_leg'] = range(21,36)
 
 
 def normalizationStats(completeData):
@@ -31,48 +31,61 @@ def normalizationStats(completeData):
 
 def sampleTrainSequences(trainData,T=200,delta_shift=50):
 	training_data = []
+	Y = []
+	N = 0
 	for k in trainData.keys():
 		data = trainData[k]
 		start = 0
 		end = T
-		while end < data.shape[0]:
-			reshape_data = data[start:end,:].reshape((T,1,data.shape[1]))
-			if len(training_data) == 0:
-				training_data = reshape_data
-			else:
-				training_data = np.concatenate((training_data,reshape_data),axis=1)
+		while end + 1 < data.shape[0]:
+			training_data.append(data[start:end,:])
+			Y.append(data[start+1:end+1,:])
+			N += 1
 			start += delta_shift
 			end += delta_shift
-
-	meanTensor = data_mean.reshape((1,1,training_data.shape[2]))	
-	meanTensor = np.repeat(meanTensor,training_data.shape[0],axis=0)
-	meanTensor = np.repeat(meanTensor,training_data.shape[1],axis=1)
-	stdTensor = data_std.reshape((1,1,training_data.shape[2]))	
-	stdTensor = np.repeat(stdTensor,training_data.shape[0],axis=0)
-	stdTensor = np.repeat(stdTensor,training_data.shape[1],axis=1)
+	D = training_data[0].shape[1]
+	data3Dtensor = np.zeros((T,N,D))
+	Y3Dtensor = np.zeros((T,N,D))
+	count = 0
+	for x,y in zip(training_data,Y):
+		data3Dtensor[:,count,:] = x
+		Y3Dtensor[:,count,:] = y
+		count += 1
+	meanTensor = data_mean.reshape((1,1,data3Dtensor.shape[2]))	
+	meanTensor = np.repeat(meanTensor,data3Dtensor.shape[0],axis=0)
+	meanTensor = np.repeat(meanTensor,data3Dtensor.shape[1],axis=1)
+	stdTensor = data_std.reshape((1,1,data3Dtensor.shape[2]))	
+	stdTensor = np.repeat(stdTensor,data3Dtensor.shape[0],axis=0)
+	stdTensor = np.repeat(stdTensor,data3Dtensor.shape[1],axis=1)
 
 	# Normalizing the training data features
-	training_data = np.divide((training_data - meanTensor),stdTensor)
+	data3Dtensor = np.divide((data3Dtensor - meanTensor),stdTensor)
+	Y3Dtensor = np.divide((Y3Dtensor - meanTensor),stdTensor)
+	return data3Dtensor,Y3Dtensor
 
-def getfeatures(nodeName,edgeType):
+def getlabels(nodeName):
+	D = predictFeatures[nodeName].shape[2]
+	return predictFeatures[nodeName],D
+
+def getfeatures(nodeName,edgeType,nodeConnections,nodeNames):
 	if edgeType.split('_')[1] == 'input':
 		return nodeFeatures[nodeName]
 	
 	features = []
 	nodesConnectedTo = nodeConnections[nodeName]
 	for nm in nodesConnectedTo:
-		et1 = nodeList[nm] + '_' + nodeList[nodeName]
-		et2 = nodeList[nodeName] + '_' + nodeList[nm]
+		et1 = nodeNames[nm] + '_' + nodeNames[nodeName]
+		et2 = nodeNames[nodeName] + '_' + nodeNames[nm]
 		
 		f1 = 0
 		f2 = 0
-		if et1 == et2:
+		if et1 == et2 and et1 == edgeType:
 			f1 = nodeFeatures[nodeName] 
 			f2 = nodeFeatures[nm]
-		elif et1 == edgeType 
+		elif et1 == edgeType:
 			f1 = nodeFeatures[nm] 
 			f2 = nodeFeatures[nodeName]
-		elif et2 == edgeType 
+		elif et2 == edgeType:
 			f1 = nodeFeatures[nodeName] 
 			f2 = nodeFeatures[nm]
 		else:
@@ -82,7 +95,7 @@ def getfeatures(nodeName,edgeType):
 			features = np.concatenate((f1,f2),axis=2)
 		else:
 			features += np.concatenate((f1,f2),axis=2)
-	
+
 	return features	
 
 def cherryPickNodeFeatures(data3DTensor):
@@ -94,7 +107,7 @@ def cherryPickNodeFeatures(data3DTensor):
 			if x not in dimensions_to_ignore:
 				filterList.append(x)
 		nodeFeatures[nm] = data3Dtensor[:,:,filterList]
-		
+	return nodeFeatures	
 
 def loadTrainData():
 	trainData = {}
@@ -106,6 +119,23 @@ def loadTrainData():
 				trainData[(subj,action,subact)] = readCSVasFloat(filename)
 				if len(completeData) == 0:
 					completeData = copy.deepcopy(trainData[(subj,action,subact)])
-				else
+				else:
 					completeData = np.append(completeData,trainData[(subj,action,subact)],axis=0)
 	return trainData,completeData
+
+[trainData,completeData]=loadTrainData()
+print 'loaded training data'
+
+[data_mean,data_std,dimensions_to_ignore]=normalizationStats(completeData)
+print 'normalized data'
+
+[data3Dtensor,Y3Dtensor] = sampleTrainSequences(trainData,T=200,delta_shift=50)
+
+print data3Dtensor.shape
+
+nodeFeatures = cherryPickNodeFeatures(data3Dtensor)
+
+print nodeFeatures.keys()
+
+predictFeatures = cherryPickNodeFeatures(Y3Dtensor)
+

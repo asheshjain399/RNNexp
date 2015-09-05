@@ -14,17 +14,14 @@ import pdb
 import socket as soc
 import copy
 
+sys.path.insert('CRFProblems/H3.6m')
+import processdata as poseDataset
+
 global rng
 rng = np.random.RandomState(1234567890)
 
-'''
-Understanding data structures
-nodeToEdgeConnections: node_type ---> [edge_types]
-nodeConnections: node_name ---> [node_names]
-nodeList: node_name ---> node_type
-'''
 
-def DRAmodelRegression(nodeList,edgeList,edgeFeatures,nodeFeatures,nodeToEdgeConnections,clipnorm=0.0):
+def DRAmodelRegression(nodeList,edgeList,edgeFeatures,nodeFeatureLength,nodeToEdgeConnections,clipnorm=0.0):
 
 	edgeRNNs = {}
 	edgeNames = edgeList
@@ -41,9 +38,9 @@ def DRAmodelRegression(nodeList,edgeList,edgeFeatures,nodeFeatures,nodeToEdgeCon
 				]
 
 	nodeRNNs = {}
-	nodeNames = nodeList.keys()
+	nodeTypes = nodeList.keys()
 	nodeLabels = {}
-	for nm in nodeNames:
+	for nm in nodeTypes:
 		num_classes = nodeList[nm]
 		nodeRNNs[nm] = [LSTM('tanh','sigmoid',lstm_init,100,1000,rng=rng),
 				simpleRNN('rectify','uniform',size=500,temporal_connection=False,rng=rng),
@@ -51,7 +48,7 @@ def DRAmodelRegression(nodeList,edgeList,edgeFeatures,nodeFeatures,nodeToEdgeCon
 				simpleRNN('linear','uniform',size=num_classes,temporal_connection=False,rng=rng),
 				]
 		em = nm+'_input'
-		edgeRNNs[em] = [TemporalInputFeatures(nodeFeatures[nm]),
+		edgeRNNs[em] = [TemporalInputFeatures(nodeFeatureLength[nm]),
 				AddNoiseToInput(rng=rng),
 				simpleRNN('rectify','uniform',size=500,temporal_connection=False,rng=rng),
 				simpleRNN('linear','uniform',size=500,temporal_connection=False,rng=rng),
@@ -61,7 +58,7 @@ def DRAmodelRegression(nodeList,edgeList,edgeFeatures,nodeFeatures,nodeToEdgeCon
 	dra = DRA(edgeRNNs,nodeRNNs,nodeToEdgeConnections,euclidean_loss,nodeLabels,learning_rate,clipnorm)
 	return dra
 
-def DRAmodelClassification(nodeList,edgeList,edgeFeatures,nodeFeatures,nodeToEdgeConnections,clipnorm=0.0):
+def DRAmodelClassification(nodeList,edgeList,edgeFeatures,nodeFeatureLength,nodeToEdgeConnections,clipnorm=0.0):
 
 	edgeRNNs = {}
 	edgeNames = edgeList
@@ -90,7 +87,7 @@ def DRAmodelClassification(nodeList,edgeList,edgeFeatures,nodeFeatures,nodeToEdg
 				softmax(num_classes,softmax_init,rng=rng)
 				]
 		em = nm+'_input'
-		edgeRNNs[em] = [TemporalInputFeatures(nodeFeatures[nm]),
+		edgeRNNs[em] = [TemporalInputFeatures(nodeFeatureLength[nm]),
 				AddNoiseToInput(rng=rng),
 				simpleRNN('rectify','uniform',size=500,temporal_connection=False,rng=rng),
 				simpleRNN('rectify','uniform',size=500,temporal_connection=False,rng=rng),
@@ -100,20 +97,32 @@ def DRAmodelClassification(nodeList,edgeList,edgeFeatures,nodeFeatures,nodeToEdg
 	dra = DRA(edgeRNNs,nodeRNNs,nodeToEdgeConnections,softmax_loss,nodeLabels,learning_rate,clipnorm)
 	return dra
 
+'''
+Understanding data structures
+nodeToEdgeConnections: node_type ---> [edge_types]
+nodeConnections: node_name ---> [node_names]
+nodeNames: node_name ---> node_type
+nodeList: node_type ---> output_dimension
+nodeFeatureLength: node_type ---> feature_dim_into_nodeRNN
+
+edgeList: list of edge types
+edgeFeatures: edge_type ---> feature_dim_into_edgeRNN
+'''
+
 def readCRFGraph(filename):
 	lines = open(filename).readlines()
 	nodeOrder = []
 	nodeNames = {}
 	nodeList = {}
 	nodeToEdgeConnections = {}
-	nodeFeatures = {}
+	nodeFeatureLength = {}
 	for node_name, node_type in zip(lines[0].strip().split(','),lines[1].strip().split(',')):
 		nodeOrder.append(node_name)
 		nodeNames[node_name] = node_type
 		nodeList[node_type] = 0
 		nodeToEdgeConnections[node_type] = {}
 		nodeToEdgeConnections[node_type][node_type+'_input'] = [0,0]
-		nodeFeatures[node_type] = 0
+		nodeFeatureLength[node_type] = 0
 	
 	edgeList = []
 	edgeFeatures = {}
@@ -159,11 +168,11 @@ def readCRFGraph(filename):
 		high = 0
 
 		for edgeType in edgeTypesConnectedTo:
-			edge_features[edgeType] = getFeatures(nodeName,edgeType)
+			edge_features[edgeType] = poseDataset.getfeatures(nodeName,edgeType,nodeConnections,nodeNames)
 
 		edgeType = nodeType + '_input'
 		D = edge_features[edgeType].shape[2]
-		nodeFeatures[nodeType] = D
+		nodeFeatureLength[nodeType] = D
 		high += D
 		nodeToEdgeConnections[nodeType][edgeType][0] = low
 		nodeToEdgeConnections[nodeType][edgeType][1] = high
@@ -189,7 +198,7 @@ def readCRFGraph(filename):
 
 		print nodeToEdgeConnections
 
-	return nodeNames,nodeList,nodeFeatures,nodeConnections,edgeList,edgeFeatures,nodeToEdgeConnections	
+	return nodeNames,nodeList,nodeFeatureLength,nodeConnections,edgeList,edgeFeatures,nodeToEdgeConnections,trX,trY	
 
 if __name__ == '__main__':
 	
@@ -197,8 +206,8 @@ if __name__ == '__main__':
 
 	crf_file = './CRFProblems/{0}/crf'.format(crf_problem)
 
-	readCRFGraph(crf_file)
-
+	[nodeNames,nodeList,nodeFeatureLength,nodeConnections,edgeList,edgeFeatures,nodeToEdgeConnections,trX,trY] = readCRFGraph(crf_file)
+	dra = DRAmodelRegression(nodeList,edgeList,edgeFeatures,nodeFeatureLength,nodeToEdgeConnections,clipnorm=0.0)
 	'''
 	index = sys.argv[1]	
 	fold = sys.argv[2]
