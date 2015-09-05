@@ -65,7 +65,8 @@ def getfeatures(nodeName,edgeType):
 		et2 = nodeList[nodeName] + '_' + nodeList[nm]
 		
 		if et1 == et2:
-			f1 = 
+			f1 = nodeFeatures[nodeName] 
+			f2 = nodeFeatures[nm]
 
 		if et1 == edgeType or et2 == edgeType:
 			if len(features) == 0
