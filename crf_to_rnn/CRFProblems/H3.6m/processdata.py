@@ -64,15 +64,26 @@ def getfeatures(nodeName,edgeType):
 		et1 = nodeList[nm] + '_' + nodeList[nodeName]
 		et2 = nodeList[nodeName] + '_' + nodeList[nm]
 		
+		f1 = 0
+		f2 = 0
 		if et1 == et2:
 			f1 = nodeFeatures[nodeName] 
 			f2 = nodeFeatures[nm]
+		elif et1 == edgeType 
+			f1 = nodeFeatures[nm] 
+			f2 = nodeFeatures[nodeName]
+		elif et2 == edgeType 
+			f1 = nodeFeatures[nodeName] 
+			f2 = nodeFeatures[nm]
+		else:
+			continue
 
-		if et1 == edgeType or et2 == edgeType:
-			if len(features) == 0
-
-
-
+		if len(features) == 0:
+			features = np.concatenate((f1,f2),axis=2)
+		else:
+			features += np.concatenate((f1,f2),axis=2)
+	
+	return features	
 
 def cherryPickNodeFeatures(data3DTensor):
 	nodeFeatures = {}
