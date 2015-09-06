@@ -14,7 +14,7 @@ import pdb
 import socket as soc
 import copy
 
-sys.path.insert('CRFProblems/H3.6m')
+sys.path.insert(0,'CRFProblems/H3.6m')
 import processdata as poseDataset
 
 global rng
@@ -156,9 +156,9 @@ def readCRFGraph(filename):
 
 	trX = {}
 	trY = {}
-	for nodeType in nodeList:
-		trX[nodeType] = {}
-		trY[nodeType] = {}
+	#for nodeType in nodeList:
+	#	trX[nodeType] = {}
+	#	trY[nodeType] = {}
 
 	for nodeName in nodeNames.keys():
 		edge_features = {}
@@ -190,11 +190,12 @@ def readCRFGraph(filename):
 			low = high
 			nodeRNNFeatures = np.concatenate((nodeRNNFeatures,edge_features[edgeType]),axis=2)
 		
-		Y,num_classes = getLabels(nodeName)
+		Y,num_classes = poseDataset.getlabels(nodeName)
 		nodeList[nodeType] = num_classes
 		
-		trX[nodeType][nodeName] = nodeRNNFeatures
-		trY[nodeType][nodeName] = Y
+		idx = nodeName + ':' + nodeType
+		trX[idx] = nodeRNNFeatures
+		trY[idx] = Y
 
 		print nodeToEdgeConnections
 
@@ -208,6 +209,7 @@ if __name__ == '__main__':
 
 	[nodeNames,nodeList,nodeFeatureLength,nodeConnections,edgeList,edgeFeatures,nodeToEdgeConnections,trX,trY] = readCRFGraph(crf_file)
 	dra = DRAmodelRegression(nodeList,edgeList,edgeFeatures,nodeFeatureLength,nodeToEdgeConnections,clipnorm=0.0)
+	dra.fitModel(trX,trY,1)
 	'''
 	index = sys.argv[1]	
 	fold = sys.argv[2]

@@ -76,3 +76,4 @@ target/
 */MocapToolbox/old_python/*
 */MocapToolbox/oldmatlab/*
 */crf_to_rnn/CRFProblems/datasets/*
+*/crf_to_rnn/CRFProblems/H3.6m/dataset/*

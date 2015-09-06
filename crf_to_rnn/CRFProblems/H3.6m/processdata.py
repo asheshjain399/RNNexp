@@ -1,6 +1,7 @@
 import numpy as np
 import copy
 from neuralmodels.utils import readCSVasFloat
+import socket as soc
 
 trainSubjects = ['S1','S6','S7','S8','S9']
 validateSubject = ['S11']
@@ -9,7 +10,13 @@ allSubjects = ['S1','S6','S7','S8','S9','S11','S5']
 
 actions =['directions','discussion','eating','greeting','phoning','posing','purchases','sitting','sittingdown','smoking','takingphoto','waiting','walking','walkingdog','walkingtogether']
 subactions=['1','2']
-path_to_dataset = '/home/ashesh/Downloads/dataset'
+
+base_dir = ''
+if soc.gethostname() == "napoli110.stanford.edu":
+	base_dir = '/scr/ashesh/h3.6m'
+elif soc.gethostname() == "ashesh":
+	base_dir = '.'
+path_to_dataset = '{0}/dataset'.format(base_dir)
 
 nodeFeaturesRanges={}
 nodeFeaturesRanges['torso'] = range(6)
@@ -124,18 +131,13 @@ def loadTrainData():
 	return trainData,completeData
 
 [trainData,completeData]=loadTrainData()
-print 'loaded training data'
+print 'Loaded training data'
 
 [data_mean,data_std,dimensions_to_ignore]=normalizationStats(completeData)
-print 'normalized data'
+print 'Normalized data'
 
 [data3Dtensor,Y3Dtensor] = sampleTrainSequences(trainData,T=200,delta_shift=50)
-
-print data3Dtensor.shape
+print 'Generated training sequences'
 
 nodeFeatures = cherryPickNodeFeatures(data3Dtensor)
-
-print nodeFeatures.keys()
-
 predictFeatures = cherryPickNodeFeatures(Y3Dtensor)
-
