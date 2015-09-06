@@ -51,8 +51,8 @@ def sampleTrainSequences(trainData,T=200,delta_shift=50):
 			start += delta_shift
 			end += delta_shift
 	D = training_data[0].shape[1]
-	data3Dtensor = np.zeros((T,N,D))
-	Y3Dtensor = np.zeros((T,N,D))
+	data3Dtensor = np.zeros((T,N,D),dtype=np.float32)
+	Y3Dtensor = np.zeros((T,N,D),dtype=np.float32)
 	count = 0
 	for x,y in zip(training_data,Y):
 		data3Dtensor[:,count,:] = x
@@ -116,6 +116,15 @@ def cherryPickNodeFeatures(data3DTensor):
 		nodeFeatures[nm] = data3Dtensor[:,:,filterList]
 	return nodeFeatures	
 
+def ignoreZeroVarianceFeatures(data3DTensor):
+	D = data3DTensor.shape[2]
+	filterList = []
+	for x in range(D):
+		if x in dimensions_to_ignore:
+			continue
+		filterList.append(x)
+	return data3DTensor[:,:,filterList]
+
 def loadTrainData():
 	trainData = {}
 	completeData = []
@@ -130,14 +139,19 @@ def loadTrainData():
 					completeData = np.append(completeData,trainData[(subj,action,subact)],axis=0)
 	return trainData,completeData
 
+def getMalikFeatures():
+	return malikTrainFeatures,malikPredictFeatures
+
 [trainData,completeData]=loadTrainData()
-print 'Loaded training data'
 
 [data_mean,data_std,dimensions_to_ignore]=normalizationStats(completeData)
-print 'Normalized data'
 
 [data3Dtensor,Y3Dtensor] = sampleTrainSequences(trainData,T=200,delta_shift=50)
-print 'Generated training sequences'
 
 nodeFeatures = cherryPickNodeFeatures(data3Dtensor)
+
 predictFeatures = cherryPickNodeFeatures(Y3Dtensor)
+
+malikTrainFeatures = ignoreZeroVarianceFeatures(data3Dtensor)
+
+malikPredictFeatures = ignoreZeroVarianceFeatures(Y3Dtensor)
