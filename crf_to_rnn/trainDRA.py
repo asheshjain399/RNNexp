@@ -124,6 +124,20 @@ def readCRFGraph(filename):
 
 	return nodeNames,nodeList,nodeFeatureLength,nodeConnections,edgeList,edgeFeatures,nodeToEdgeConnections,trX,trY	
 
+def saveForecastedMotion(forecast,path):
+	T = forecast.shape[0]
+	N = forecast.shape[1]
+	D = forecast.shape[2]
+	for j in range(N):
+		motion = forecast[:,j,:]
+		f = open('{0}forecast_N_{1}'.format(path,j),'w')
+		for i in range(T):
+			st = ''
+			for k in range(D):
+				st += str(motion[i,k]) + ','
+			st = st[:-1]
+			f.write(st+'\n')
+		f.close()
 
 
 def DRAmodelRegression(nodeList,edgeList,edgeFeatures,nodeFeatureLength,nodeToEdgeConnections,clipnorm=0.0):
@@ -232,13 +246,19 @@ def trainMaliks():
 	trX,trY = poseDataset.getMalikFeatures()
 	trX_validation,trY_validation = poseDataset.getMalikValidationFeatures()
 	trX_forecasting,trY_forecasting = poseDataset.getMalikTrajectoryForecasting()
+	
+	saveForecastedMotion(trY_forecasting,path_to_checkpoint)
+	print 'X forecasting ',trX_forecasting.shape
+	print 'Y forecasting ',trY_forecasting.shape
 
 	inputDim = trX.shape[2]
 	rnn = MaliksRegression(inputDim,clipnorm=25.0)
 	rnn.fitModel(trX,trY,1,path=path_to_checkpoint,epochs=100,batch_size=20,decay_after=10,
 		learning_rate=1e-2,trX_validation=trX_validation,trY_validation=trY_validation,
 		trX_forecasting=trX_forecasting,trY_forecasting=trY_forecasting)
-		
+
+
+			
 if __name__ == '__main__':
 	model_to_train = sys.argv[1]
 

@@ -2,6 +2,7 @@ import numpy as np
 import copy
 from neuralmodels.utils import readCSVasFloat
 import socket as soc
+import cPickle
 
 global rng
 rng = np.random.RandomState(1234567890)
@@ -36,6 +37,12 @@ def normalizationStats(completeData):
 	data_std =  np.std(completeData,axis=0)
 	dimensions_to_ignore = list(np.where(data_std < 1e-4)[0])
 	data_std[dimensions_to_ignore] = 1.0
+
+	data_stats = {}
+	data_stats['mean'] = data_mean
+	data_stats['std'] = data_std
+	data_stats['ignore_dimensions'] = dimensions_to_ignore
+	cPickle.dump(data_stats,open('h36mstats.pik','wb'))
 
 	'''Returns the mean of data, std, and dimensions with small std. Which we later ignore.	'''
 	return data_mean,data_std,dimensions_to_ignore
@@ -175,7 +182,7 @@ def getMalikValidationFeatures():
 	return validate_malikTrainFeatures,validate_malikPredictFeatures
 
 def getMalikTrajectoryForecasting():
-	return trX_forecast_malik,trY_forecat_malik
+	return trX_forecast_malik,trY_forecast_malik
 	
 #Keep T fixed, and tweak delta_shift in order to generate less/more examples
 T=500
