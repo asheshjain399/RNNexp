@@ -9,6 +9,7 @@ from neuralmodels.costs import softmax_loss, euclidean_loss
 from neuralmodels.models import * 
 from neuralmodels.predictions import OutputMaxProb, OutputSampleFromDiscrete
 from neuralmodels.layers import * 
+from neuralmodels.updates import Adagrad,RMSprop,Momentum,Adadelta
 import cPickle
 import pdb
 import socket as soc
@@ -207,19 +208,19 @@ def MaliksRegression(inputDim,clipnorm=0.0):
 		AddNoiseToInput(rng=rng),
 		simpleRNN('rectify','uniform',truncate_gradient=1,size=500,temporal_connection=False,rng=rng),
 		simpleRNN('linear','uniform',truncate_gradient=1,size=500,temporal_connection=False,rng=rng),
-		LSTM('tanh','sigmoid',lstm_init,100,1000,rng=rng),
-		LSTM('tanh','sigmoid',lstm_init,100,1000,rng=rng),		
+		LSTM('tanh','sigmoid',lstm_init,truncate_gradient=50,size=1000,rng=rng),
+		LSTM('tanh','sigmoid',lstm_init,truncate_gradient=50,size=1000,rng=rng),		
 		simpleRNN('rectify','uniform',truncate_gradient=1,size=500,temporal_connection=False,rng=rng),
 		simpleRNN('rectify','uniform',truncate_gradient=1,size=100,temporal_connection=False,rng=rng),
 		simpleRNN('linear','uniform',truncate_gradient=1,size=inputDim,temporal_connection=False,rng=rng)
 		]
 	Y = T.tensor3(dtype=theano.config.floatX)
 	learning_rate = T.scalar(dtype=theano.config.floatX)
-	rnn = noisyRNN(layers,euclidean_loss,Y,learning_rate,clipnorm=clipnorm)	
+	rnn = noisyRNN(layers,euclidean_loss,Y,learning_rate,clipnorm=clipnorm,update_type=Momentum())	
 	return rnn
 
 def trainDRA():
-	crf_file = './CRFProblems/H3.6m/crf'.format(crf_problem)
+	crf_file = './CRFProblems/H3.6m/crf'
 	path_to_checkpoint = poseDataset.base_dir + '/checkpoints_DRA/'
 	[nodeNames,nodeList,nodeFeatureLength,nodeConnections,edgeList,edgeFeatures,nodeToEdgeConnections,trX,trY] = readCRFGraph(crf_file)
 	dra = DRAmodelRegression(nodeList,edgeList,edgeFeatures,nodeFeatureLength,nodeToEdgeConnections,clipnorm=0.0)
@@ -227,10 +228,16 @@ def trainDRA():
 
 def trainMaliks():
 	path_to_checkpoint = poseDataset.base_dir + '/checkpoints_Malik/'
+
 	trX,trY = poseDataset.getMalikFeatures()
+	trX_validation,trY_validation = poseDataset.getMalikValidationFeatures()
+	trX_forecasting,trY_forecasting = poseDataset.getMalikTrajectoryForecasting()
+
 	inputDim = trX.shape[2]
-	rnn = MaliksRegression(inputDim,clipnorm=0.0)
-	rnn.fitModel(trX,trY,1,path=path_to_checkpoint,epochs=50,batch_size=200,decay_after=15)
+	rnn = MaliksRegression(inputDim,clipnorm=25.0)
+	rnn.fitModel(trX,trY,1,path=path_to_checkpoint,epochs=100,batch_size=20,decay_after=10,
+		learning_rate=1e-2,trX_validation=trX_validation,trY_validation=trY_validation,
+		trX_forecasting=trX_forecasting,trY_forecasting=trY_forecasting)
 		
 if __name__ == '__main__':
 	model_to_train = sys.argv[1]

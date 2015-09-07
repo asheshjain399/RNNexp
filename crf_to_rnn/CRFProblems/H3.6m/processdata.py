@@ -3,12 +3,16 @@ import copy
 from neuralmodels.utils import readCSVasFloat
 import socket as soc
 
+global rng
+rng = np.random.RandomState(1234567890)
+
 trainSubjects = ['S1','S6','S7','S8','S9']
 validateSubject = ['S11']
 testSubject = ['S5']
 allSubjects = ['S1','S6','S7','S8','S9','S11','S5']
 
-actions =['directions','discussion','eating','greeting','phoning','posing','purchases','sitting','sittingdown','smoking','takingphoto','waiting','walking','walkingdog','walkingtogether']
+#actions =['directions','discussion','eating','greeting','phoning','posing','purchases','sitting','sittingdown','smoking','takingphoto','waiting','walking','walkingdog','walkingtogether']
+actions = ['walking','eating','smoking']
 subactions=['1','2']
 
 base_dir = ''
@@ -35,6 +39,16 @@ def normalizationStats(completeData):
 
 	'''Returns the mean of data, std, and dimensions with small std. Which we later ignore.	'''
 	return data_mean,data_std,dimensions_to_ignore
+
+def normalizeTensor(inputTensor):
+	meanTensor = data_mean.reshape((1,1,inputTensor.shape[2]))	
+	meanTensor = np.repeat(meanTensor,inputTensor.shape[0],axis=0)
+	meanTensor = np.repeat(meanTensor,inputTensor.shape[1],axis=1)
+	stdTensor = data_std.reshape((1,1,inputTensor.shape[2]))	
+	stdTensor = np.repeat(stdTensor,inputTensor.shape[0],axis=0)
+	stdTensor = np.repeat(stdTensor,inputTensor.shape[1],axis=1)
+	normalizedTensor = np.divide((inputTensor - meanTensor),stdTensor)
+	return normalizedTensor
 
 def sampleTrainSequences(trainData,T=200,delta_shift=50):
 	training_data = []
@@ -66,8 +80,8 @@ def sampleTrainSequences(trainData,T=200,delta_shift=50):
 	stdTensor = np.repeat(stdTensor,data3Dtensor.shape[1],axis=1)
 
 	# Normalizing the training data features
-	data3Dtensor = np.divide((data3Dtensor - meanTensor),stdTensor)
-	Y3Dtensor = np.divide((Y3Dtensor - meanTensor),stdTensor)
+	data3Dtensor = normalizeTensor(data3Dtensor) #np.divide((data3Dtensor - meanTensor),stdTensor)
+	Y3Dtensor = normalizeTensor(Y3Dtensor) #np.divide((Y3Dtensor - meanTensor),stdTensor)
 	return data3Dtensor,Y3Dtensor
 
 def getlabels(nodeName):
@@ -125,10 +139,10 @@ def ignoreZeroVarianceFeatures(data3DTensor):
 		filterList.append(x)
 	return data3DTensor[:,:,filterList]
 
-def loadTrainData():
+def loadTrainData(subjects):
 	trainData = {}
 	completeData = []
-	for subj in trainSubjects:
+	for subj in subjects:
 		for action in actions:
 			for subact in subactions:
 				filename = '{0}/{1}/{2}_{3}.txt'.format(path_to_dataset,subj,action,subact)
@@ -139,19 +153,63 @@ def loadTrainData():
 					completeData = np.append(completeData,trainData[(subj,action,subact)],axis=0)
 	return trainData,completeData
 
+def generateForecastingExamples(trainData,prefix,suffix,subject):
+	N = len(actions)*len(subactions)
+	D = trainData[(subject,actions[0],subactions[0])].shape[1]
+	trX = np.zeros((prefix,N,D),dtype=np.float32)
+	trY = np.zeros((suffix,N,D),dtype=np.float32)
+	count = 0
+	for action in actions:
+		for subact in subactions:
+			T = trainData[(subject,action,subact)].shape[0]
+			idx = rng.randint(T-prefix-suffix)
+			trX[:,count,:] = trainData[(subject,action,subact)][idx:(idx+prefix),:]
+			trY[:,count,:] = trainData[(subject,action,subact)][(idx+prefix):(idx+prefix+suffix),:]
+			count += 1
+	return normalizeTensor(trX),normalizeTensor(trY)
+
 def getMalikFeatures():
 	return malikTrainFeatures,malikPredictFeatures
 
-[trainData,completeData]=loadTrainData()
+def getMalikValidationFeatures():
+	return validate_malikTrainFeatures,validate_malikPredictFeatures
 
+def getMalikTrajectoryForecasting():
+	return trX_forecast_malik,trY_forecat_malik
+	
+#Keep T fixed, and tweak delta_shift in order to generate less/more examples
+T=500
+delta_shift=450
+
+#Load training and validation data
+[trainData,completeData]=loadTrainData(trainSubjects)
+[validateData,completeValidationData]=loadTrainData(validateSubject)
+
+#Compute training data mean
 [data_mean,data_std,dimensions_to_ignore]=normalizationStats(completeData)
 
-[data3Dtensor,Y3Dtensor] = sampleTrainSequences(trainData,T=200,delta_shift=50)
+#Create normalized 3D tensor for training and validation
+[data3Dtensor,Y3Dtensor] = sampleTrainSequences(trainData,T,delta_shift)
+[validate3Dtensor,validateY3Dtensor] = sampleTrainSequences(validateData,T,delta_shift)
 
+print 'Training data stats (T,N,D) is ',data3Dtensor.shape
+print 'Training data stats (T,N,D) is ',validate3Dtensor.shape
+
+#Generate normalized data for trajectory forecasting
+motion_prefix=50
+motion_suffix=100
+trX_forecast,trY_forecast = generateForecastingExamples(validateData,motion_prefix,motion_suffix,validateSubject[0])
+
+#Create training and validation features for DRA
 nodeFeatures = cherryPickNodeFeatures(data3Dtensor)
-
 predictFeatures = cherryPickNodeFeatures(Y3Dtensor)
+validate_nodeFeatures = cherryPickNodeFeatures(validate3Dtensor)
+validate_predictFeatures = cherryPickNodeFeatures(validateY3Dtensor)
 
+#Create training and validation features for Malik's LSTM model
 malikTrainFeatures = ignoreZeroVarianceFeatures(data3Dtensor)
-
 malikPredictFeatures = ignoreZeroVarianceFeatures(Y3Dtensor)
+validate_malikTrainFeatures = ignoreZeroVarianceFeatures(validate3Dtensor)
+validate_malikPredictFeatures = ignoreZeroVarianceFeatures(validateY3Dtensor)
+trX_forecast_malik = ignoreZeroVarianceFeatures(trX_forecast)
+trY_forecast_malik = ignoreZeroVarianceFeatures(trY_forecast)
