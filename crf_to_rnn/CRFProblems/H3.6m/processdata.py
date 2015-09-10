@@ -35,14 +35,9 @@ nodeFeaturesRanges['left_leg'] = range(21,36)
 def normalizationStats(completeData):
 	data_mean = np.mean(completeData,axis=0)
 	data_std =  np.std(completeData,axis=0)
-	dimensions_to_ignore = list(np.where(data_std < 1e-4)[0])
+	dimensions_to_ignore = [0,1,2,3,4,5]
+	dimensions_to_ignore.extend(list(np.where(data_std < 1e-4)[0]))
 	data_std[dimensions_to_ignore] = 1.0
-
-	data_stats = {}
-	data_stats['mean'] = data_mean
-	data_stats['std'] = data_std
-	data_stats['ignore_dimensions'] = dimensions_to_ignore
-	cPickle.dump(data_stats,open('h36mstats.pik','wb'))
 
 	'''Returns the mean of data, std, and dimensions with small std. Which we later ignore.	'''
 	return data_mean,data_std,dimensions_to_ignore
@@ -62,6 +57,11 @@ def sampleTrainSequences(trainData,T=200,delta_shift=50):
 	Y = []
 	N = 0
 	for k in trainData.keys():
+
+		'''Subsample data'''
+		if len(k) < 4:
+			continue
+
 		data = trainData[k]
 		start = 0
 		end = T
@@ -153,7 +153,15 @@ def loadTrainData(subjects):
 		for action in actions:
 			for subact in subactions:
 				filename = '{0}/{1}/{2}_{3}.txt'.format(path_to_dataset,subj,action,subact)
-				trainData[(subj,action,subact)] = readCSVasFloat(filename)
+				action_sequence = readCSVasFloat(filename)
+				
+				T = action_sequence.shape[0]
+				odd_list = range(1,T,2)
+				even_list = range(0,T,2)
+				
+				trainData[(subj,action,subact)] = action_sequence
+				trainData[(subj,action,subact,'even')] = action_sequence[even_list,:]
+				trainData[(subj,action,subact,'odd')] = action_sequence[odd_list,:]
 				if len(completeData) == 0:
 					completeData = copy.deepcopy(trainData[(subj,action,subact)])
 				else:
@@ -168,7 +176,7 @@ def generateForecastingExamples(trainData,prefix,suffix,subject):
 	count = 0
 	for action in actions:
 		for subact in subactions:
-			T = trainData[(subject,action,subact)].shape[0]
+			T = trainData[(subject,action,subact,'even')].shape[0]
 			idx = rng.randint(T-prefix-suffix)
 			trX[:,count,:] = trainData[(subject,action,subact)][idx:(idx+prefix),:]
 			trY[:,count,:] = trainData[(subject,action,subact)][(idx+prefix):(idx+prefix+suffix),:]
@@ -194,6 +202,10 @@ delta_shift=450
 
 #Compute training data mean
 [data_mean,data_std,dimensions_to_ignore]=normalizationStats(completeData)
+data_stats = {}
+data_stats['mean'] = data_mean
+data_stats['std'] = data_std
+data_stats['ignore_dimensions'] = dimensions_to_ignore
 
 #Create normalized 3D tensor for training and validation
 [data3Dtensor,Y3Dtensor] = sampleTrainSequences(trainData,T,delta_shift)

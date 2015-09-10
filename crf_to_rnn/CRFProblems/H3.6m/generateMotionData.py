@@ -38,21 +38,25 @@ def convertAndSave(fname):
 		return
 	normalizedData = readCSVasFloat(fpath)
 	origData = unNormalizeData(normalizedData,data_mean,data_std,dimensions_to_ignore)
-	fpath = path_to_trajfiles + 'orig_' + fname
+	fpath = path_to_trajfiles + fname
 	writeMatToCSV(origData,fpath)
 
-path_to_trajfiles = '{0}/checkpoints_Malik/'.format(base_dir)
+path_to_trajfiles = '{0}/checkpoints_LSTM_no_Trans_no_rot_s_1000_lstm_init_orthogonal_fc_init_uniform_decay_type_schedule/'.format(base_dir)
 numexamples = 6
 epoches = 100
 
-data_stats = cPickle.load(open('h36mstats.pik'))
+data_stats = cPickle.load(open('{0}h36mstats.pik'.format(path_to_trajfiles)))
 data_mean = data_stats['mean']
 data_std = data_stats['std']
 dimensions_to_ignore = data_stats['ignore_dimensions']
 
 for n in range(numexamples):
-	fname = 'forecast_N_{0}'.format(n)
+	fname = 'ground_truth_forecast_N_{0}'.format(n)
+	convertAndSave(fname)
+	fname = 'train_example_N_{0}'.format(n)
 	convertAndSave(fname)
 	for e in range(epoches):
+		fname = 'train_error_epoch_{1}_N_{0}'.format(n,e)
+		convertAndSave(fname)
 		fname = 'forecast_epoch_{0}_N_{1}'.format(e,n)
 		convertAndSave(fname)

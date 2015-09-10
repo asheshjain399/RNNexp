@@ -15,6 +15,32 @@ import pdb
 import socket as soc
 import copy
 
+epoch_to_load = None
+use_pretrained = 0
+if len(sys.argv) > 2:
+	use_pretrained = int(sys.argv[2])
+	if len(sys.argv) <= 3:
+		print 'enter the epoch to load as well'
+		sys.exit(0)
+	epoch_to_load = int(sys.argv[3])
+	print 'Loading pre-trained model with epoch={0}'.format(epoch_to_load)
+
+'''Hyperparameters'''
+decay_type = 'schedule'
+decay_after = -1
+learning_rate_decay = 0.97
+decay_schedule = [15,25,40,50]
+decay_rate_schedule = [0.1,0.1,0.1,0.1]
+lstm_size= 1000
+lstm_init = 'orthogonal'
+fc_init = 'uniform'
+snapshot_rate = 10
+epochs = 100
+batch_size = 20
+clipnorm = 0.0
+use_noise = True
+noise_schedule = [10,15,20,30]
+noise_rate_schedule = [0.0001,0.001,0.01,0.1]
 
 '''Loads H3.6m dataset'''
 sys.path.insert(0,'CRFProblems/H3.6m')
@@ -130,7 +156,7 @@ def saveForecastedMotion(forecast,path):
 	D = forecast.shape[2]
 	for j in range(N):
 		motion = forecast[:,j,:]
-		f = open('{0}forecast_N_{1}'.format(path,j),'w')
+		f = open('{0}ground_truth_forecast_N_{1}'.format(path,j),'w')
 		for i in range(T):
 			st = ''
 			for k in range(D):
@@ -216,18 +242,34 @@ def DRAmodelClassification(nodeList,edgeList,edgeFeatures,nodeFeatureLength,node
 	dra = DRA(edgeRNNs,nodeRNNs,nodeToEdgeConnections,softmax_loss,nodeLabels,learning_rate,clipnorm=clipnorm)
 	return dra
 
-def MaliksRegression(inputDim,clipnorm=0.0):
-	lstm_init = 'orthogonal'
+def MaliksRegression(inputDim):
 	layers = [TemporalInputFeatures(inputDim),
-		AddNoiseToInput(rng=rng),
-		simpleRNN('rectify','uniform',truncate_gradient=1,size=500,temporal_connection=False,rng=rng),
-		simpleRNN('linear','uniform',truncate_gradient=1,size=500,temporal_connection=False,rng=rng),
-		LSTM('tanh','sigmoid',lstm_init,truncate_gradient=50,size=1000,rng=rng),
-		LSTM('tanh','sigmoid',lstm_init,truncate_gradient=50,size=1000,rng=rng),		
-		simpleRNN('rectify','uniform',truncate_gradient=1,size=500,temporal_connection=False,rng=rng),
-		simpleRNN('rectify','uniform',truncate_gradient=1,size=100,temporal_connection=False,rng=rng),
-		simpleRNN('linear','uniform',truncate_gradient=1,size=inputDim,temporal_connection=False,rng=rng)
+		#AddNoiseToInput(rng=rng),
+		simpleRNN('rectify',fc_init,truncate_gradient=1,size=500,temporal_connection=False,rng=rng),
+		simpleRNN('linear',fc_init,truncate_gradient=1,size=500,temporal_connection=False,rng=rng,jump_up=True),
+		LSTM('tanh','sigmoid',lstm_init,truncate_gradient=50,size=lstm_size,rng=rng),
+		LSTM('tanh','sigmoid',lstm_init,truncate_gradient=50,size=lstm_size,rng=rng,skip_input=True),		
+		simpleRNN('rectify',fc_init,truncate_gradient=1,size=500,temporal_connection=False,rng=rng),
+		simpleRNN('rectify',fc_init,truncate_gradient=1,size=100,temporal_connection=False,rng=rng),
+		simpleRNN('linear',fc_init,truncate_gradient=1,size=inputDim,temporal_connection=False,rng=rng)
 		]
+	Y = T.tensor3(dtype=theano.config.floatX)
+	learning_rate = T.scalar(dtype=theano.config.floatX)
+	rnn = noisyRNN(layers,euclidean_loss,Y,learning_rate,clipnorm=clipnorm,update_type=Momentum())	
+	return rnn
+
+def LSTMRegression(inputDim):
+	
+	LSTMs = [LSTM('tanh','sigmoid',lstm_init,truncate_gradient=50,size=lstm_size,rng=rng,skip_input=False),
+		LSTM('tanh','sigmoid',lstm_init,truncate_gradient=50,size=lstm_size,rng=rng,skip_input=True),		
+		LSTM('tanh','sigmoid',lstm_init,truncate_gradient=50,size=lstm_size,rng=rng,skip_input=True)
+		]
+	layers = [TemporalInputFeatures(inputDim),
+		AddNoiseToInput(rng=rng,jump_up=True),
+		multilayerLSTM(LSTMs,skip_input=True,skip_output=True),
+		simpleRNN('linear',fc_init,truncate_gradient=1,size=inputDim,temporal_connection=False,rng=rng)
+		]
+
 	Y = T.tensor3(dtype=theano.config.floatX)
 	learning_rate = T.scalar(dtype=theano.config.floatX)
 	rnn = noisyRNN(layers,euclidean_loss,Y,learning_rate,clipnorm=clipnorm,update_type=Momentum())	
@@ -241,7 +283,11 @@ def trainDRA():
 	dra.fitModel(trX,trY,1,path=path_to_checkpoint,epochs=50,batch_size=200,decay_after=15)
 
 def trainMaliks():
-	path_to_checkpoint = poseDataset.base_dir + '/checkpoints_Malik/'
+	path_to_checkpoint = poseDataset.base_dir + '/checkpoints_Malik_s_{0}_lstm_init_{1}_fc_init_{2}_decay_type_{3}/'.format(lstm_size,lstm_init,fc_init,decay_type)
+
+	if not os.path.exists(path_to_checkpoint):
+		os.mkdir(path_to_checkpoint)
+	saveNormalizationStats(path_to_checkpoint)
 
 	trX,trY = poseDataset.getMalikFeatures()
 	trX_validation,trY_validation = poseDataset.getMalikValidationFeatures()
@@ -252,19 +298,53 @@ def trainMaliks():
 	print 'Y forecasting ',trY_forecasting.shape
 
 	inputDim = trX.shape[2]
-	rnn = MaliksRegression(inputDim,clipnorm=25.0)
-	rnn.fitModel(trX,trY,1,path=path_to_checkpoint,epochs=100,batch_size=20,decay_after=10,
-		learning_rate=1e-2,trX_validation=trX_validation,trY_validation=trY_validation,
-		trX_forecasting=trX_forecasting,trY_forecasting=trY_forecasting)
+	rnn = MaliksRegression(inputDim)
+	rnn.fitModel(trX,trY,snapshot_rate=shapshot_rate,path=path_to_checkpoint,epochs=epochs,batch_size=batch_size,
+		decay_after=decay_after,learning_rate=1e-2,learning_rate_decay=learning_rate_decay,trX_validation=trX_validation,
+		trY_validation=trY_validation,trX_forecasting=trX_forecasting,trY_forecasting=trY_forecasting,epoch_start=epoch_to_load,
+		decay_type=decay_type,decay_schedule=decay_schedule,decay_rate_schedule=decay_rate_schedule,
+		use_noise=use_noise,noise_schedule=noise_schedule,noise_rate_schedule=noise_rate_schedule)
 
+def trainLSTM():
+	path_to_checkpoint = poseDataset.base_dir + '/checkpoints_LSTM_no_Trans_no_rot_s_{0}_lstm_init_{1}_fc_init_{2}_decay_type_{3}/'.format(lstm_size,lstm_init,fc_init,decay_type)
 
-			
+	if not os.path.exists(path_to_checkpoint):
+		os.mkdir(path_to_checkpoint)
+	saveNormalizationStats(path_to_checkpoint)
+
+	trX,trY = poseDataset.getMalikFeatures()
+	trX_validation,trY_validation = poseDataset.getMalikValidationFeatures()
+	trX_forecasting,trY_forecasting = poseDataset.getMalikTrajectoryForecasting()
+	
+	saveForecastedMotion(trY_forecasting,path_to_checkpoint)
+	print 'X forecasting ',trX_forecasting.shape
+	print 'Y forecasting ',trY_forecasting.shape
+
+	inputDim = trX.shape[2]
+	print inputDim
+	rnn = []
+	if use_pretrained == 1:
+		rnn = load(path_to_checkpoint+'checkpoint.'+str(epoch_to_load))
+	else:
+		rnn = LSTMRegression(inputDim)
+	rnn.fitModel(trX, trY, snapshot_rate=snapshot_rate, path=path_to_checkpoint, epochs=epochs, batch_size=batch_size,
+		decay_after=decay_after, learning_rate=1e-2, learning_rate_decay=learning_rate_decay, trX_validation=trX_validation,
+		trY_validation=trY_validation, trX_forecasting=trX_forecasting, trY_forecasting=trY_forecasting, epoch_start=epoch_to_load,
+		decay_type=decay_type, decay_schedule=decay_schedule, decay_rate_schedule=decay_rate_schedule,
+		use_noise=use_noise,noise_schedule=noise_schedule,noise_rate_schedule=noise_rate_schedule)
+
+def saveNormalizationStats(path):
+	cPickle.dump(poseDataset.data_stats,open('{0}h36mstats.pik'.format(path),'wb'))
+
 if __name__ == '__main__':
 	model_to_train = sys.argv[1]
+
 
 	if model_to_train == 'malik':
 		trainMaliks()
 	elif model_to_train == 'dra':
 		trainDRA()
+	elif model_to_train == 'lstm':
+		trainLSTM()
 	else:
 		print "Unknown model type ... existing"
