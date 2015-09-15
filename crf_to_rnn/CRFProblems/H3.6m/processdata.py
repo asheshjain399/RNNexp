@@ -18,7 +18,17 @@ subactions=['1','2']
 
 base_dir = ''
 if soc.gethostname() == "napoli110.stanford.edu":
-	base_dir = '/scr/ashesh/h3.6m'
+	#base_dir = '/scr/ashesh/h3.6m'
+	base_dir = '/scail/scratch/group/cvgl/ashesh/h3.6m'
+	gpus = 1
+if soc.gethostname() == "napoli106.stanford.edu":
+	#base_dir = '/scr/ashesh/h3.6m'
+	base_dir = '/scail/scratch/group/cvgl/ashesh/h3.6m'
+	gpus = 2
+if soc.gethostname() == "napoli107.stanford.edu":
+	#base_dir = '/scr/ashesh/h3.6m'
+	base_dir = '/scail/scratch/group/cvgl/ashesh/h3.6m'
+	gpus = 2
 elif soc.gethostname() == "ashesh":
 	base_dir = '.'
 path_to_dataset = '{0}/dataset'.format(base_dir)
@@ -174,12 +184,14 @@ def generateForecastingExamples(trainData,prefix,suffix,subject):
 	trX = np.zeros((prefix,N,D),dtype=np.float32)
 	trY = np.zeros((suffix,N,D),dtype=np.float32)
 	count = 0
-	for action in actions:
+	#for action in actions:
+	for i in range(3):
+		action = 'walking'
 		for subact in subactions:
 			T = trainData[(subject,action,subact,'even')].shape[0]
 			idx = rng.randint(T-prefix-suffix)
-			trX[:,count,:] = trainData[(subject,action,subact)][idx:(idx+prefix),:]
-			trY[:,count,:] = trainData[(subject,action,subact)][(idx+prefix):(idx+prefix+suffix),:]
+			trX[:,count,:] = trainData[(subject,action,subact,'even')][idx:(idx+prefix),:]
+			trY[:,count,:] = trainData[(subject,action,subact,'even')][(idx+prefix):(idx+prefix+suffix),:]
 			count += 1
 	return normalizeTensor(trX),normalizeTensor(trY)
 
@@ -193,42 +205,44 @@ def getMalikTrajectoryForecasting():
 	return trX_forecast_malik,trY_forecast_malik
 	
 #Keep T fixed, and tweak delta_shift in order to generate less/more examples
-T=500
-delta_shift=450
+T=150
+delta_shift= T - 50
 
+def runall():
+	global trainData,completeData,validateData,completeValidationData,data_stats,data3Dtensor,Y3Dtensor,validate3Dtensor,validateY3Dtensor,trX_forecast,trY_forecast,malikTrainFeatures,malikPredictFeatures,validate_malikTrainFeatures,validate_malikPredictFeatures,trX_forecast_malik,trY_forecast_malik,data_mean,data_std,dimensions_to_ignore
 #Load training and validation data
-[trainData,completeData]=loadTrainData(trainSubjects)
-[validateData,completeValidationData]=loadTrainData(validateSubject)
+	[trainData,completeData]=loadTrainData(trainSubjects)
+	[validateData,completeValidationData]=loadTrainData(validateSubject)
 
 #Compute training data mean
-[data_mean,data_std,dimensions_to_ignore]=normalizationStats(completeData)
-data_stats = {}
-data_stats['mean'] = data_mean
-data_stats['std'] = data_std
-data_stats['ignore_dimensions'] = dimensions_to_ignore
-
+	[data_mean,data_std,dimensions_to_ignore]=normalizationStats(completeData)
+	data_stats = {}
+	data_stats['mean'] = data_mean
+	data_stats['std'] = data_std
+	data_stats['ignore_dimensions'] = dimensions_to_ignore
+	print T
 #Create normalized 3D tensor for training and validation
-[data3Dtensor,Y3Dtensor] = sampleTrainSequences(trainData,T,delta_shift)
-[validate3Dtensor,validateY3Dtensor] = sampleTrainSequences(validateData,T,delta_shift)
+	[data3Dtensor,Y3Dtensor] = sampleTrainSequences(trainData,T,delta_shift)
+	[validate3Dtensor,validateY3Dtensor] = sampleTrainSequences(validateData,T,delta_shift)
 
-print 'Training data stats (T,N,D) is ',data3Dtensor.shape
-print 'Training data stats (T,N,D) is ',validate3Dtensor.shape
+	print 'Training data stats (T,N,D) is ',data3Dtensor.shape
+	print 'Training data stats (T,N,D) is ',validate3Dtensor.shape
 
 #Generate normalized data for trajectory forecasting
-motion_prefix=50
-motion_suffix=100
-trX_forecast,trY_forecast = generateForecastingExamples(validateData,motion_prefix,motion_suffix,validateSubject[0])
+	motion_prefix=50
+	motion_suffix=100
+	trX_forecast,trY_forecast = generateForecastingExamples(validateData,motion_prefix,motion_suffix,validateSubject[0])
 
 #Create training and validation features for DRA
-nodeFeatures = cherryPickNodeFeatures(data3Dtensor)
-predictFeatures = cherryPickNodeFeatures(Y3Dtensor)
-validate_nodeFeatures = cherryPickNodeFeatures(validate3Dtensor)
-validate_predictFeatures = cherryPickNodeFeatures(validateY3Dtensor)
+	nodeFeatures = cherryPickNodeFeatures(data3Dtensor)
+	predictFeatures = cherryPickNodeFeatures(Y3Dtensor)
+	validate_nodeFeatures = cherryPickNodeFeatures(validate3Dtensor)
+	validate_predictFeatures = cherryPickNodeFeatures(validateY3Dtensor)
 
 #Create training and validation features for Malik's LSTM model
-malikTrainFeatures = ignoreZeroVarianceFeatures(data3Dtensor)
-malikPredictFeatures = ignoreZeroVarianceFeatures(Y3Dtensor)
-validate_malikTrainFeatures = ignoreZeroVarianceFeatures(validate3Dtensor)
-validate_malikPredictFeatures = ignoreZeroVarianceFeatures(validateY3Dtensor)
-trX_forecast_malik = ignoreZeroVarianceFeatures(trX_forecast)
-trY_forecast_malik = ignoreZeroVarianceFeatures(trY_forecast)
+	malikTrainFeatures = ignoreZeroVarianceFeatures(data3Dtensor)
+	malikPredictFeatures = ignoreZeroVarianceFeatures(Y3Dtensor)
+	validate_malikTrainFeatures = ignoreZeroVarianceFeatures(validate3Dtensor)
+	validate_malikPredictFeatures = ignoreZeroVarianceFeatures(validateY3Dtensor)
+	trX_forecast_malik = ignoreZeroVarianceFeatures(trX_forecast)
+	trY_forecast_malik = ignoreZeroVarianceFeatures(trY_forecast)

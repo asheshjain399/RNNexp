@@ -1,4 +1,5 @@
 import sys
+import argparse
 import numpy as np
 import theano
 import os
@@ -15,6 +16,47 @@ import pdb
 import socket as soc
 import copy
 
+parser = argparse.ArgumentParser(description='Process some integers.')
+parser.add_argument('--decay_type',type=str,default='schedule')
+parser.add_argument('--decay_after',type=int,default=-1)
+parser.add_argument('--initial_lr',type=float,default=1e-3)
+parser.add_argument('--learning_rate_decay',type=float,default=1.0)
+parser.add_argument('--decay_schedule',nargs='*')
+parser.add_argument('--decay_rate_schedule',nargs='*')
+parser.add_argument('--lstm_size',type=int,default=10)
+parser.add_argument('--lstm_init',type=str,default='uniform')
+parser.add_argument('--fc_init',type=str,default='uniform')
+parser.add_argument('--snapshot_rate',type=int,default=10)
+parser.add_argument('--epochs',type=int,default=100)
+parser.add_argument('--batch_size',type=int,default=30)
+parser.add_argument('--clipnorm',type=float,default=0.0)
+parser.add_argument('--use_noise',type=int,default=1)
+parser.add_argument('--noise_schedule',nargs='*')
+parser.add_argument('--noise_rate_schedule',nargs='*')
+parser.add_argument('--momentum',type=float,default=0.99)
+parser.add_argument('--g_clip',type=float,default=25.0)
+parser.add_argument('--truncate_gradient',type=int,default=50)
+parser.add_argument('--use_pretrained',type=int,default=0)
+parser.add_argument('--epoch_to_load',type=int,default=None)
+parser.add_argument('--model_to_train',type=str,default='lstm')
+parser.add_argument('--checkpoint_path',type=str,default='checkpoint.dummy')
+parser.add_argument('--sequence_length',type=int,default=150)
+args = parser.parse_args()
+
+convert_list_to_float = ['decay_schedule','decay_rate_schedule','noise_schedule','noise_rate_schedule']
+for k in convert_list_to_float:
+	if getattr(args,k) is not None:
+		temp_list = []
+		for v in getattr(args,k):
+			temp_list.append(float(v))
+		setattr(args,k,temp_list)
+
+print args
+if args.use_pretrained:
+	print 'Loading pre-trained model with epoch={0}'.format(args.epoch_to_load)
+
+	
+'''
 epoch_to_load = None
 use_pretrained = 0
 if len(sys.argv) > 2:
@@ -24,27 +66,38 @@ if len(sys.argv) > 2:
 		sys.exit(0)
 	epoch_to_load = int(sys.argv[3])
 	print 'Loading pre-trained model with epoch={0}'.format(epoch_to_load)
-
+'''
 '''Hyperparameters'''
+'''
 decay_type = 'schedule'
 decay_after = -1
 learning_rate_decay = 0.97
-decay_schedule = [15,25,40,50]
-decay_rate_schedule = [0.1,0.1,0.1,0.1]
+decay_schedule = [] #[15,25,40,50]
+decay_rate_schedule = [] #[0.1,0.1,0.1,0.1]
 lstm_size= 1000
-lstm_init = 'orthogonal'
+lstm_init = 'uniform'
 fc_init = 'uniform'
 snapshot_rate = 10
 epochs = 100
-batch_size = 20
+batch_size = 100
 clipnorm = 0.0
 use_noise = True
-noise_schedule = [10,15,20,30]
-noise_rate_schedule = [0.0001,0.001,0.01,0.1]
+noise_schedule =  [2,6,12,16,22,30,36] #[50,55,60,68,75] #[2,4,6,8]
+noise_rate_schedule =  [0.05,0.1,0.2,0.3,0.5,0.8,1.0] #[0.3,0.5,0.8,1.0,1.2] #[0.05,0.1,0.2,0.3]
+initial_lr = 1e-5
+momentum = 0.99
+g_clip = 25.0
+truncate_gradient = 100
+'''
+
+gradient_method = Momentum(momentum=args.momentum)
 
 '''Loads H3.6m dataset'''
 sys.path.insert(0,'CRFProblems/H3.6m')
 import processdata as poseDataset
+poseDataset.T = args.sequence_length
+poseDataset.delta_shift = args.sequence_length - 50
+poseDataset.runall()
 print '**** H3.6m Loaded ****'
 
 global rng
@@ -243,36 +296,40 @@ def DRAmodelClassification(nodeList,edgeList,edgeFeatures,nodeFeatureLength,node
 	return dra
 
 def MaliksRegression(inputDim):
-	layers = [TemporalInputFeatures(inputDim),
-		#AddNoiseToInput(rng=rng),
-		simpleRNN('rectify',fc_init,truncate_gradient=1,size=500,temporal_connection=False,rng=rng),
-		simpleRNN('linear',fc_init,truncate_gradient=1,size=500,temporal_connection=False,rng=rng,jump_up=True),
-		LSTM('tanh','sigmoid',lstm_init,truncate_gradient=50,size=lstm_size,rng=rng),
-		LSTM('tanh','sigmoid',lstm_init,truncate_gradient=50,size=lstm_size,rng=rng,skip_input=True),		
-		simpleRNN('rectify',fc_init,truncate_gradient=1,size=500,temporal_connection=False,rng=rng),
-		simpleRNN('rectify',fc_init,truncate_gradient=1,size=100,temporal_connection=False,rng=rng),
-		simpleRNN('linear',fc_init,truncate_gradient=1,size=inputDim,temporal_connection=False,rng=rng)
+	LSTMs = [LSTM('tanh','sigmoid',args.lstm_init,truncate_gradient=args.truncate_gradient,size=args.lstm_size,rng=rng,g_low=-args.g_clip,g_high=args.g_clip),
+		LSTM('tanh','sigmoid',args.lstm_init,truncate_gradient=args.truncate_gradient,size=args.lstm_size,rng=rng,g_low=-args.g_clip,g_high=args.g_clip)		
 		]
+
+	layers = [TemporalInputFeatures(inputDim),
+		AddNoiseToInput(rng=rng),
+		FCLayer('rectify',args.fc_init,size=500,rng=rng),
+		FCLayer('linear',args.fc_init,size=500,rng=rng),
+		multilayerLSTM(LSTMs,skip_input=True,skip_output=True),
+		FCLayer('rectify',args.fc_init,size=500,rng=rng),
+		FCLayer('rectify',args.fc_init,size=100,rng=rng),
+		FCLayer('linear',args.fc_init,size=inputDim,rng=rng)
+		]
+
 	Y = T.tensor3(dtype=theano.config.floatX)
 	learning_rate = T.scalar(dtype=theano.config.floatX)
-	rnn = noisyRNN(layers,euclidean_loss,Y,learning_rate,clipnorm=clipnorm,update_type=Momentum())	
+	rnn = noisyRNN(layers,euclidean_loss,Y,learning_rate,clipnorm=args.clipnorm,update_type=gradient_method)	
 	return rnn
 
 def LSTMRegression(inputDim):
 	
-	LSTMs = [LSTM('tanh','sigmoid',lstm_init,truncate_gradient=50,size=lstm_size,rng=rng,skip_input=False),
-		LSTM('tanh','sigmoid',lstm_init,truncate_gradient=50,size=lstm_size,rng=rng,skip_input=True),		
-		LSTM('tanh','sigmoid',lstm_init,truncate_gradient=50,size=lstm_size,rng=rng,skip_input=True)
+	LSTMs = [LSTM('tanh','sigmoid',args.lstm_init,truncate_gradient=args.truncate_gradient,size=args.lstm_size,rng=rng,g_low=-args.g_clip,g_high=args.g_clip),
+		LSTM('tanh','sigmoid',args.lstm_init,truncate_gradient=args.truncate_gradient,size=args.lstm_size,rng=rng,g_low=-args.g_clip,g_high=args.g_clip),		
+		LSTM('tanh','sigmoid',args.lstm_init,truncate_gradient=args.truncate_gradient,size=args.lstm_size,rng=rng,g_low=-args.g_clip,g_high=args.g_clip)
 		]
 	layers = [TemporalInputFeatures(inputDim),
-		AddNoiseToInput(rng=rng,jump_up=True),
+		AddNoiseToInput(rng=rng),
 		multilayerLSTM(LSTMs,skip_input=True,skip_output=True),
-		simpleRNN('linear',fc_init,truncate_gradient=1,size=inputDim,temporal_connection=False,rng=rng)
+		FCLayer('linear',args.fc_init,size=inputDim,rng=rng)
 		]
 
 	Y = T.tensor3(dtype=theano.config.floatX)
 	learning_rate = T.scalar(dtype=theano.config.floatX)
-	rnn = noisyRNN(layers,euclidean_loss,Y,learning_rate,clipnorm=clipnorm,update_type=Momentum())	
+	rnn = noisyRNN(layers,euclidean_loss,Y,learning_rate,clipnorm=args.clipnorm,update_type=gradient_method)	
 	return rnn
 
 def trainDRA():
@@ -283,30 +340,7 @@ def trainDRA():
 	dra.fitModel(trX,trY,1,path=path_to_checkpoint,epochs=50,batch_size=200,decay_after=15)
 
 def trainMaliks():
-	path_to_checkpoint = poseDataset.base_dir + '/checkpoints_Malik_s_{0}_lstm_init_{1}_fc_init_{2}_decay_type_{3}/'.format(lstm_size,lstm_init,fc_init,decay_type)
-
-	if not os.path.exists(path_to_checkpoint):
-		os.mkdir(path_to_checkpoint)
-	saveNormalizationStats(path_to_checkpoint)
-
-	trX,trY = poseDataset.getMalikFeatures()
-	trX_validation,trY_validation = poseDataset.getMalikValidationFeatures()
-	trX_forecasting,trY_forecasting = poseDataset.getMalikTrajectoryForecasting()
-	
-	saveForecastedMotion(trY_forecasting,path_to_checkpoint)
-	print 'X forecasting ',trX_forecasting.shape
-	print 'Y forecasting ',trY_forecasting.shape
-
-	inputDim = trX.shape[2]
-	rnn = MaliksRegression(inputDim)
-	rnn.fitModel(trX,trY,snapshot_rate=shapshot_rate,path=path_to_checkpoint,epochs=epochs,batch_size=batch_size,
-		decay_after=decay_after,learning_rate=1e-2,learning_rate_decay=learning_rate_decay,trX_validation=trX_validation,
-		trY_validation=trY_validation,trX_forecasting=trX_forecasting,trY_forecasting=trY_forecasting,epoch_start=epoch_to_load,
-		decay_type=decay_type,decay_schedule=decay_schedule,decay_rate_schedule=decay_rate_schedule,
-		use_noise=use_noise,noise_schedule=noise_schedule,noise_rate_schedule=noise_rate_schedule)
-
-def trainLSTM():
-	path_to_checkpoint = poseDataset.base_dir + '/checkpoints_LSTM_no_Trans_no_rot_s_{0}_lstm_init_{1}_fc_init_{2}_decay_type_{3}/'.format(lstm_size,lstm_init,fc_init,decay_type)
+	path_to_checkpoint = poseDataset.base_dir + '/{0}/'.format(args.checkpoint_path)
 
 	if not os.path.exists(path_to_checkpoint):
 		os.mkdir(path_to_checkpoint)
@@ -323,28 +357,57 @@ def trainLSTM():
 	inputDim = trX.shape[2]
 	print inputDim
 	rnn = []
-	if use_pretrained == 1:
-		rnn = load(path_to_checkpoint+'checkpoint.'+str(epoch_to_load))
+	if args.use_pretrained == 1:
+		rnn = load(path_to_checkpoint+'checkpoint.'+str(args.epoch_to_load))
+	else:
+		rnn = MaliksRegression(inputDim)
+	rnn.fitModel(trX, trY, snapshot_rate=args.snapshot_rate, path=path_to_checkpoint, epochs=args.epochs, batch_size=args.batch_size,
+		decay_after=args.decay_after, learning_rate=args.initial_lr, learning_rate_decay=args.learning_rate_decay, trX_validation=trX_validation,
+		trY_validation=trY_validation, trX_forecasting=trX_forecasting, trY_forecasting=trY_forecasting, epoch_start=args.epoch_to_load,
+		decay_type=args.decay_type, decay_schedule=args.decay_schedule, decay_rate_schedule=args.decay_rate_schedule,
+		use_noise=args.use_noise, noise_schedule=args.noise_schedule, noise_rate_schedule=args.noise_rate_schedule)
+
+def trainLSTM():
+	#path_to_checkpoint = poseDataset.base_dir + '/checkpoints_LSTM_no_Trans_no_rot_lr_{0}_mu_{1}_gclip_{2}_batch_size_{3}_truncate_gradient_{4}/'.format(args.initial_lr,args.momentum,args.g_clip,args.batch_size,args.truncate_gradient)
+
+	path_to_checkpoint = poseDataset.base_dir + '/{0}/'.format(args.checkpoint_path)
+
+	if not os.path.exists(path_to_checkpoint):
+		os.mkdir(path_to_checkpoint)
+	saveNormalizationStats(path_to_checkpoint)
+
+	trX,trY = poseDataset.getMalikFeatures()
+	trX_validation,trY_validation = poseDataset.getMalikValidationFeatures()
+	trX_forecasting,trY_forecasting = poseDataset.getMalikTrajectoryForecasting()
+	
+	saveForecastedMotion(trY_forecasting,path_to_checkpoint)
+	print 'X forecasting ',trX_forecasting.shape
+	print 'Y forecasting ',trY_forecasting.shape
+
+	inputDim = trX.shape[2]
+	print inputDim
+	rnn = []
+	if args.use_pretrained == 1:
+		rnn = load(path_to_checkpoint+'checkpoint.'+str(args.epoch_to_load))
 	else:
 		rnn = LSTMRegression(inputDim)
-	rnn.fitModel(trX, trY, snapshot_rate=snapshot_rate, path=path_to_checkpoint, epochs=epochs, batch_size=batch_size,
-		decay_after=decay_after, learning_rate=1e-2, learning_rate_decay=learning_rate_decay, trX_validation=trX_validation,
-		trY_validation=trY_validation, trX_forecasting=trX_forecasting, trY_forecasting=trY_forecasting, epoch_start=epoch_to_load,
-		decay_type=decay_type, decay_schedule=decay_schedule, decay_rate_schedule=decay_rate_schedule,
-		use_noise=use_noise,noise_schedule=noise_schedule,noise_rate_schedule=noise_rate_schedule)
+	rnn.fitModel(trX, trY, snapshot_rate=args.snapshot_rate, path=path_to_checkpoint, epochs=args.epochs, batch_size=args.batch_size,
+		decay_after=args.decay_after, learning_rate=args.initial_lr, learning_rate_decay=args.learning_rate_decay, trX_validation=trX_validation,
+		trY_validation=trY_validation, trX_forecasting=trX_forecasting, trY_forecasting=trY_forecasting, epoch_start=args.epoch_to_load,
+		decay_type=args.decay_type, decay_schedule=args.decay_schedule, decay_rate_schedule=args.decay_rate_schedule,
+		use_noise=args.use_noise, noise_schedule=args.noise_schedule, noise_rate_schedule=args.noise_rate_schedule)
 
 def saveNormalizationStats(path):
 	cPickle.dump(poseDataset.data_stats,open('{0}h36mstats.pik'.format(path),'wb'))
 
 if __name__ == '__main__':
-	model_to_train = sys.argv[1]
 
 
-	if model_to_train == 'malik':
+	if args.model_to_train == 'malik':
 		trainMaliks()
-	elif model_to_train == 'dra':
+	elif args.model_to_train == 'dra':
 		trainDRA()
-	elif model_to_train == 'lstm':
+	elif args.model_to_train == 'lstm':
 		trainLSTM()
 	else:
 		print "Unknown model type ... existing"
