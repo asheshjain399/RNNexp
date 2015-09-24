@@ -1,5 +1,5 @@
 function [xlim, ylim, zlim] = ...
-    expPlayData(skel, channels, frameLength, xlim, ylim, zlim)
+    expPlayData(skel, channels, frameLength, writerObj, close_before_returning, xlim, ylim, zlim)
 
 % Version 1.01 
 %
@@ -34,12 +34,13 @@ function [xlim, ylim, zlim] = ...
 if nargin < 3
     frameLength = 1/120;
 end
+%set(gcf,'Visible','off');
 clf
-
-figure;
+%set(gcf,'Visible','off');
+%figure;
 handle = expVisualise(channels(1, :), skel);
 
-if nargin < 6
+if nargin < 8
     %We didn't specify the limits of the motion
     %So calculate the limits
 
@@ -71,9 +72,25 @@ set(gca, 'xlim', xlim, ...
     'zlim', zlim);
 
 % Play the motion
+%writerObj = VideoWriter('generated.avi');
+%writerObj.FrameRate = 100.0;
+%open(writerObj);
+
 for jj = 1:size(channels, 1)
-    pause(frameLength)
-    %fprintf('frame %i\n',j);
-    %pause;
+    if  jj > 50
+        set(handle(1),'color','g')
+    end;
     expModify(handle, channels(jj, :), skel);
+    if nargin > 3
+        %disp(jj)
+        writeVideo(writerObj,getframe);
+    else
+        pause(frameLength);
+    end;
 end
+if nargin == 4
+    close(writerObj);
+end;
+if nargin == 5 && close_before_returning
+    close(writerObj);
+end;
