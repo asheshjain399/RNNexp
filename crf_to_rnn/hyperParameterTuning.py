@@ -13,7 +13,7 @@ if soc.gethostname() == "napoli110.stanford.edu":
 elif soc.gethostname() == "napoli105.stanford.edu":
 	#base_dir = '/scr/ashesh/h3.6m'
 	base_dir = '/scail/scratch/group/cvgl/ashesh/h3.6m'
-	gpus = [1]
+	gpus = [0]
 elif soc.gethostname() == "napoli106.stanford.edu":
 	#base_dir = '/scr/ashesh/h3.6m'
 	base_dir = '/scail/scratch/group/cvgl/ashesh/h3.6m'
@@ -21,7 +21,7 @@ elif soc.gethostname() == "napoli106.stanford.edu":
 elif soc.gethostname() == "napoli107.stanford.edu":
 	#base_dir = '/scr/ashesh/h3.6m'
 	base_dir = '/scail/scratch/group/cvgl/ashesh/h3.6m'
-	gpus = [0,1]
+	gpus = [1]
 elif soc.gethostname() == "napoli108.stanford.edu":
 	#base_dir = '/scr/ashesh/h3.6m'
 	base_dir = '/scail/scratch/group/cvgl/ashesh/h3.6m'
@@ -29,11 +29,15 @@ elif soc.gethostname() == "napoli108.stanford.edu":
 elif soc.gethostname() == "napoli101.stanford.edu":
 	#base_dir = '/scr/ashesh/h3.6m'
 	base_dir = '/scail/scratch/group/cvgl/ashesh/h3.6m'
-	gpus = [1]
+	gpus = [0]
 elif soc.gethostname() == "napoli104.stanford.edu":
 	#base_dir = '/scr/ashesh/h3.6m'
 	base_dir = '/scail/scratch/group/cvgl/ashesh/h3.6m'
 	gpus = [1]
+elif soc.gethostname() == "napoli109.stanford.edu":
+	#base_dir = '/scr/ashesh/h3.6m'
+	base_dir = '/scail/scratch/group/cvgl/ashesh/h3.6m'
+	gpus = [0]
 elif soc.gethostname() == "ashesh":
 	base_dir = '.'
 else:
@@ -45,15 +49,16 @@ cv_over = ['initial_lr','clipnorm','noise','decay']
 cv['initial_lr'] = [1e-3]
 cv['clipnorm'] = [25.0]
 #cv['maxiter'] = [1000]
-cv['noise'] = [	[[900.0,2000.0,3000.0,4000.0,5000.0,6000.0,7000.0,8000.0],[0.1,0.3,0.5,0.7,0.8,0.9,1.0,1.2]]
-		#[[250,0.5e3,1e3,1.3e3,2e3,2.5e3,3.3e3],[0.01,0.05,0.1,0.2,0.3,0.5,0.7]]
+cv['noise'] = [	#[[900.0,2000.0,3000.0,4000.0,5000.0,6000.0,7000.0,8000.0],[0.1,0.3,0.5,0.7,0.8,0.9,1.0,1.2]]
+		[[250,0.5e3,1e3,1.3e3,2e3,2.5e3,4e3],[0.01,0.05,0.1,0.2,0.3,0.5,0.65]]
 		#[[1e3,1.5e3,1.8e3,2.3e3,3e3,3.8e3,4e3,4.5e3],[0.1,0.3,0.5,0.7,0.8,0.9,1.0,1.2]]
 		#[[250,500,750,1000,1250,1500,1750,2000,2250,2500],[0.001,0.002,0.004,0.008,0.016,0.032,0.064,0.128,0.256,0.512]]	
 		#[[250,500,750,1000,1250,1500,1750,2000,2250,2500,3300,4000],[0.001,0.002,0.004,0.008,0.016,0.032,0.064,0.128,0.256,0.512,0.65,0.7]]	
 		]
 		 
 cv['decay'] = [	#[[1e3,4e3],[0.1,0.1]]
-		[[1.5e3,4.5e3],[0.1,0.1]]	
+		#[[1.5e3,4.5e3],[0.1,0.1]]	
+		[[4e3,7e3],[0.1,0.1]]
 		]
 #cv['noise_schedule'] = [[0.5e3,1e3,1.3e3,2e3,2.5e3,3.3e3,4e3,4.5e3]] #[[0.9e3,2e3,3e3,4e3,5e3,6e3,7e3,8e3]]
 #cv['noise_rate_schedule'] =[[0.1,0.3,0.5,0.7,0.8,0.9,1.0,1.2]] #[[0.1,0.3,0.5,0.7,0.8,0.9,1.0,1.2]]
@@ -95,21 +100,22 @@ params['noise_rate_schedule'] = []
 params['momentum'] = 0.99
 params['g_clip'] = 25.0
 
-params['truncate_gradient'] = 100
+params['truncate_gradient'] = 30
 params['use_pretrained'] = 0
 params['iter_to_load'] = 1500
-params['model_to_train'] = 'malik'
+params['model_to_train'] = 'dra'
 params['sequence_length'] = 150
 params['sequence_overlap'] = 50
-params['batch_size'] = 100
-params['lstm_size'] = 1000
+params['batch_size'] = 20
+params['lstm_size'] = 512
 params['node_lstm_size'] = 512
-params['fc_size'] = 512
+params['fc_size'] = 256
 params['snapshot_rate'] = 250
 params['crf'] = ''
 params['copy_state'] = 0
 params['full_skeleton'] = 1
-params['weight_decay'] = 0.0005
+params['weight_decay'] = 0.0
+params['train_for'] = 'final'
 
 load_pretrained_model_from = '/scail/scratch/group/cvgl/ashesh/h3.6m/checkpoints_malik_T_150_bs_100_tg_100_initial_lr_0.001_clipnorm_25.0_nschd_[250,500.0,1000.0,1300.0,2000.0,2500.0,3300.0]_nrate_[0.01,0.05,0.1,0.2,0.3,0.5,0.7]_decschd_[1500.0,4500.0]_decrate_[0.1,0.1]_fs'
 
@@ -173,7 +179,10 @@ for value_list in cv_list:
 	
 	if params['full_skeleton']:
 		params['checkpoint_path'] += '_fs'
-		
+
+	if not params['train_for'] == 'validate':
+		params['checkpoint_path'] += '_' + params['train_for']
+	
 	path_to_checkpoint = base_dir + '/{0}/'.format(params['checkpoint_path'])
 	if not os.path.exists(path_to_checkpoint):
 		os.mkdir(path_to_checkpoint)
@@ -184,7 +193,6 @@ for value_list in cv_list:
 		os.system('cp {0}/complete_log {1}.'.format(load_pretrained_model_from,path_to_checkpoint))
 
 	print 'Dir: {0}'.format(path_to_checkpoint)
-	FNULL = open('{0}stdout.txt'.format(path_to_checkpoint),'w')
 	args = ['python','trainDRA.py']
 	for k in params.keys():
 		args.append('--{0}'.format(k))
@@ -194,6 +202,7 @@ for value_list in cv_list:
 			for x in params[k]:
 				args.append(str(x))
 
+	FNULL = open('{0}stdout.txt'.format(path_to_checkpoint),'w')
 	p=sbp.Popen(args,env=my_env,shell=False,stdout=FNULL,stderr=sbp.STDOUT)
 	pd = p.pid
 	#p.wait()

@@ -8,7 +8,7 @@ from neuralmodels.utils import permute
 from neuralmodels.costs import softmax_loss
 from neuralmodels.models import * #RNN, SharedRNN, SharedRNNVectors, SharedRNNOutput
 from neuralmodels.predictions import OutputMaxProb, OutputSampleFromDiscrete
-from neuralmodels.layers import softmax, simpleRNN, OneHot, LSTM, TemporalInputFeatures,ConcatenateFeatures,ConcatenateVectors
+from neuralmodels.layers import * 
 import cPickle
 import pdb
 import socket as soc
@@ -22,13 +22,14 @@ def jointModel(num_sub_activities, num_affordances, inputJointFeatures,
 	inputHumanFeatures,inputObjectFeatures):
 	lstm_init = 'orthogonal'
 	softmax_init = 'uniform'
+	rng = np.random.RandomState(1234567890)
 
 	shared_input_layer = TemporalInputFeatures(inputJointFeatures)
-	shared_hidden_layer = LSTM('tanh','sigmoid',lstm_init,4,128)
+	shared_hidden_layer = LSTM('tanh','sigmoid',lstm_init,4,128,rng=rng)
 	#shared_hidden_layer = simpleRNN('tanh','orthogonal',4,128)
 	shared_layers = [shared_input_layer,shared_hidden_layer]
-	human_layers = [ConcatenateFeatures(inputHumanFeatures),LSTM('tanh','sigmoid',lstm_init,4,256),softmax(num_sub_activities,softmax_init)]
-	object_layers = [ConcatenateFeatures(inputObjectFeatures),LSTM('tanh','sigmoid',lstm_init,4,256),softmax(num_affordances,softmax_init)]
+	human_layers = [ConcatenateFeatures(inputHumanFeatures),LSTM('tanh','sigmoid',lstm_init,4,256,rng=rng),softmax(num_sub_activities,softmax_init,rng=rng)]
+	object_layers = [ConcatenateFeatures(inputObjectFeatures),LSTM('tanh','sigmoid',lstm_init,4,256,rng=rng),softmax(num_affordances,softmax_init,rng=rng)]
 
 	trY_1 = T.lmatrix()
 	trY_2 = T.lmatrix()
@@ -94,7 +95,8 @@ if __name__ == '__main__':
 	
 	main_path = ''
 	if soc.gethostname() == "napoli110.stanford.edu":
-		main_path = '/scr/ashesh/activity-anticipation'
+		#main_path = '/scr/ashesh/activity-anticipation'
+		main_path = '/scail/scratch/group/cvgl/ashesh/activity-anticipation'
 	elif soc.gethostname() == "ashesh":
 		main_path = '.'
 	

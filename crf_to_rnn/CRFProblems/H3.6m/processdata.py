@@ -7,6 +7,8 @@ import cPickle
 global rng
 rng = np.random.RandomState(1234567890)
 
+global trainSubjects,validateSubject,testSubject,actions
+
 trainSubjects = ['S1','S6','S7','S8','S9']
 validateSubject = ['S11']
 testSubject = ['S5']
@@ -45,6 +47,10 @@ elif soc.gethostname() == "napoli104.stanford.edu":
 	#base_dir = '/scr/ashesh/h3.6m'
 	base_dir = '/scail/scratch/group/cvgl/ashesh/h3.6m'
 	gpus = 2
+elif soc.gethostname() == "napoli109.stanford.edu":
+	#base_dir = '/scr/ashesh/h3.6m'
+	base_dir = '/scail/scratch/group/cvgl/ashesh/h3.6m'
+	gpus = 1
 elif soc.gethostname() == "ashesh":
 	base_dir = '.'
 path_to_dataset = '{0}/dataset'.format(base_dir)
@@ -214,15 +220,23 @@ def getDRAfeatures(nodeName,edgeType,nodeConnections,nodeNames,features_to_use):
 		
 		f1 = 0
 		f2 = 0
+
+		x = 0
+		y = 0
+		if nm == 'torso':
+			x = 0
+		if nodeName == 'torso':
+			y = 0
+
 		if et1 == et2 and et1 == edgeType:
-			f1 = features_to_use[nodeName] 
-			f2 = features_to_use[nm]
+			f1 = features_to_use[nodeName][:,:,y:] 
+			f2 = features_to_use[nm][:,:,x:]
 		elif et1 == edgeType:
-			f1 = features_to_use[nm] 
-			f2 = features_to_use[nodeName]
+			f1 = features_to_use[nm][:,:,x:] 
+			f2 = features_to_use[nodeName][:,:,y:]
 		elif et2 == edgeType:
-			f1 = features_to_use[nodeName] 
-			f2 = features_to_use[nm]
+			f1 = features_to_use[nodeName][:,:,y:] 
+			f2 = features_to_use[nm][:,:,x:]
 		else:
 			continue
 
@@ -309,8 +323,21 @@ delta_shift= T - 50
 num_forecast_examples = 5
 copy_state = 0
 full_skeleton = 0
+motion_prefix=50
+motion_suffix=100
+train_for = 'validate'
+
 def runall():
 	global trainData,completeData,validateData,completeValidationData,data_stats,data3Dtensor,Y3Dtensor,validate3Dtensor,validateY3Dtensor,trX_forecast,trY_forecast,malikTrainFeatures,malikPredictFeatures,validate_malikTrainFeatures,validate_malikPredictFeatures,trX_forecast_malik,trY_forecast_malik,data_mean,data_std,dimensions_to_ignore,new_idx,nodeFeatures,predictFeatures,validate_nodeFeatures,validate_predictFeatures,forecast_nodeFeatures,forecast_predictFeatures,minibatch_size,forecastidx
+	global trainSubjects,validateSubject,testSubject,actions
+
+	if train_for == 'final':
+		trainSubjects = ['S1','S6','S7','S8','S9','S11']
+		validateSubject = ['S5']
+	if train_for == 'smoking':
+		trainSubjects = ['S1','S6','S7','S8','S9','S11']
+		validateSubject = ['S5']
+		actions = ['smoking']
 #Load training and validation data
 	[trainData,completeData]=loadTrainData(trainSubjects)
 	[validateData,completeValidationData]=loadTrainData(validateSubject)
@@ -335,8 +362,6 @@ def runall():
 	print 'Training data stats (T,N,D) is ',validate3Dtensor.shape
 
 #Generate normalized data for trajectory forecasting
-	motion_prefix=50
-	motion_suffix=100
 	trX_forecast,trY_forecast,forecastidx = generateForecastingExamples(validateData,motion_prefix,motion_suffix,validateSubject[0])
 
 #Create training and validation features for DRA

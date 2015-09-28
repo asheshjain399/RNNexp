@@ -24,10 +24,18 @@ elif soc.gethostname() == "napoli105.stanford.edu":
 	#base_dir = '/scr/ashesh/h3.6m'
 	base_dir = '/scail/scratch/group/cvgl/ashesh/h3.6m'
 	gpus = 2
+elif soc.gethostname() == "napoli104.stanford.edu":
+	#base_dir = '/scr/ashesh/h3.6m'
+	base_dir = '/scail/scratch/group/cvgl/ashesh/h3.6m'
+	gpus = 2
 elif soc.gethostname() == "napoli108.stanford.edu":
 	#base_dir = '/scr/ashesh/h3.6m'
 	base_dir = '/scail/scratch/group/cvgl/ashesh/h3.6m'
 	gpus = 2
+elif soc.gethostname() == "napoli109.stanford.edu":
+	#base_dir = '/scr/ashesh/h3.6m'
+	base_dir = '/scail/scratch/group/cvgl/ashesh/h3.6m'
+	gpus = 1
 elif soc.gethostname() == "ashesh":
 	base_dir = '.'
 
@@ -149,14 +157,29 @@ all_checkpoints = ['checkpoints_dra_T_150_bs_100_tg_100_ls_512_fc_256_initial_lr
 		]
 
 
-all_checkpoints = ['checkpoints_malik_T_150_bs_100_tg_100_initial_lr_0.001_clipnorm_25.0_nschd_[250,500.0,1000.0,1300.0,2000.0,2500.0,3300.0]_nrate_[0.01,0.05,0.1,0.2,0.3,0.5,0.7]_decschd_[1500.0,4500.0]_decrate_[0.1,0.1]_fs',
+all_checkpoints = ['checkpoints_dra_T_150_bs_100_tg_100_ls_512_fc_256_initial_lr_0.001_clipnorm_25.0_nschd_[250,500.0,1000.0,1300.0,2000.0,2500.0,3300.0]_nrate_[0.01,0.05,0.1,0.2,0.3,0.5,0.7]_decschd_[1500.0,4500.0]_decrate_[0.1,0.1]_fs_final'
+		#'checkpoints_dra_T_150_bs_100_tg_100_ls_512_fc_256_initial_lr_0.001_clipnorm_25.0_nschd_[250,500.0,1000.0,1300.0,2000.0,2500.0,3300.0]_nrate_[0.01,0.05,0.1,0.2,0.3,0.5,0.7]_decschd_[1500.0,4500.0]_decrate_[0.1,0.1]_fs',
+		#'checkpoints_dra_T_150_bs_20_tg_100_ls_512_fc_256_initial_lr_0.001_clipnorm_25.0_nschd_[250,500.0,1000.0,1300.0,2000.0,2500.0,3300.0]_nrate_[0.01,0.05,0.1,0.2,0.3,0.5,0.7]_decschd_[4000.0,7000.0]_decrate_[0.1,0.1]_fs',
+		#'checkpoints_dra_T_150_bs_20_tg_100_ls_512_fc_256_initial_lr_0.001_clipnorm_25.0_nschd_[250,500.0,1000.0,1300.0,2000.0,2500.0,3300.0]_nrate_[0.01,0.05,0.1,0.2,0.3,0.5,0.7]_decschd_[4000.0,7000.0]_decrate_[0.1,0.1]_fs_smoking'
+		#'checkpoints_dra_T_150_bs_100_tg_100_ls_512_fc_256_initial_lr_0.001_clipnorm_25.0_nschd_[250,500.0,1000.0,1300.0,2000.0,2500.0,3300.0]_nrate_[0.01,0.05,0.1,0.2,0.3,0.5,0.7]_decschd_[1500.0,4500.0]_decrate_[0.1,0.1]_fs',
+		#'checkpoints_dra_T_150_bs_100_tg_100_ls_512_fc_256_nls_1000_initial_lr_0.001_clipnorm_25.0_nschd_[250,500.0,1000.0,1300.0,2000.0,2500.0,3300.0]_nrate_[0.01,0.05,0.1,0.2,0.3,0.5,0.7]_decschd_[1500.0,4500.0]_decrate_[0.1,0.1]_fc_fs',
+		#'checkpoints_dra_T_150_bs_100_tg_100_ls_512_fc_256_initial_lr_0.001_clipnorm_25.0_nschd_[250,500.0,1000.0,1300.0,2000.0,2500.0,3300.0]_nrate_[0.01,0.05,0.1,0.2,0.3,0.5,0.7]_decschd_[1500.0,4500.0]_decrate_[0.1,0.1]_fc_fs'
+		]
+
+#Malik's final models
+all_checkpoints = [
+		'checkpoints_malik_T_150_bs_20_tg_100_initial_lr_0.001_clipnorm_25.0_nschd_[250,500.0,1000.0,1300.0,2000.0,2500.0,3300.0]_nrate_[0.01,0.05,0.1,0.2,0.3,0.5,0.7]_decschd_[4000.0,7000.0]_decrate_[0.1,0.1]_fs_smoking']
+
+'''		
+		'checkpoints_malik_T_150_bs_100_tg_100_initial_lr_0.001_clipnorm_25.0_nschd_[250,500.0,1000.0,1300.0,2000.0,2500.0,3300.0]_nrate_[0.01,0.05,0.1,0.2,0.3,0.5,0.7]_decschd_[1500.0,4500.0]_decrate_[0.1,0.1]_fs',
 		'checkpoints_malik_T_150_bs_100_tg_100_initial_lr_0.001_clipnorm_25.0_nschd_[900.0,2000.0,3000.0,4000.0,5000.0,6000.0,7000.0,8000.0]_nrate_[0.1,0.3,0.5,0.7,0.8,0.9,1.0,1.2]_decschd_[1500.0,4500.0]_decrate_[0.1,0.1]_fs',
 		'checkpoints_malik_T_150_bs_100_tg_100_initial_lr_0.001_clipnorm_25.0_nschd_[250,500.0,1000.0,1300.0,2000.0,2500.0,3300.0]_nrate_[0.01,0.05,0.1,0.2,0.3,0.5,0.7]_decschd_[1500.0,4500.0]_decrate_[0.1,0.1]_wd_0.0001_fs',
-		'checkpoints_malik_T_150_bs_100_tg_100_initial_lr_0.001_clipnorm_25.0_nschd_[250,500.0,1000.0,1300.0,2000.0,2500.0,3300.0]_nrate_[0.01,0.05,0.1,0.2,0.3,0.5,0.7]_decschd_[1500.0,4500.0]_decrate_[0.1,0.1]_fc_wd_0.0005_fs'
+		'checkpoints_malik_T_150_bs_100_tg_100_initial_lr_0.001_clipnorm_25.0_nschd_[250,500.0,1000.0,1300.0,2000.0,2500.0,3300.0]_nrate_[0.01,0.05,0.1,0.2,0.3,0.5,0.7]_decschd_[1500.0,4500.0]_decrate_[0.1,0.1]_fc_wd_0.0005_fs',
+		'checkpoints_malik_T_150_bs_100_tg_100_initial_lr_0.001_clipnorm_25.0_nschd_[250,500.0,1000.0,1300.0,2000.0,2500.0,3300.0]_nrate_[0.01,0.05,0.1,0.2,0.3,0.5,0.7]_fs',
+		'checkpoints_malik_T_150_bs_100_tg_100_initial_lr_0.001_clipnorm_25.0_nschd_[900.0,2000.0,3000.0,4000.0,5000.0,6000.0,7000.0,8000.0]_nrate_[0.1,0.3,0.5,0.7,0.8,0.9,1.0,1.2]_decschd_[1500.0,4500.0]_decrate_[0.1,0.1]_wd_0.0001_fs',
+		'checkpoints_malik_T_150_bs_100_tg_100_initial_lr_0.001_clipnorm_25.0_nschd_[900.0,2000.0,3000.0,4000.0,5000.0,6000.0,7000.0,8000.0]_nrate_[0.1,0.3,0.5,0.7,0.8,0.9,1.0,1.2]_decschd_[1500.0,4500.0]_decrate_[0.1,0.1]_wd_0.0005_fs'
 		]
-#'checkpoints_malik_T_150_bs_100_tg_100_initial_lr_0.001_clipnorm_25.0_nschd_[250,500,750,1000,1250,1500,1750,2000,2250,2500,3300,4000]_nrate_[0.001,0.002,0.004,0.008,0.016,0.032,0.064,0.128,0.256,0.512,0.65,0.7]_decschd_[1000.0,4000.0]_decrate_[0.1,0.1]',
-#'checkpoints_malik_T_150_bs_100_tg_100_initial_lr_0.001_clipnorm_25.0_nschd_[250,500,750,1000,1250,1500,1750,2000,2250,2500,3300,4000]_nrate_[0.001,0.002,0.004,0.008,0.016,0.032,0.064,0.128,0.256,0.512,0.65,0.7]_decschd_[1500.0,4500.0]_decrate_[0.1,0.1]'
-		
+'''		
 for checkpoint_dir in all_checkpoints:
 	path_to_trajfiles = '{0}/{1}/'.format(base_dir,checkpoint_dir)
 	print path_to_trajfiles
@@ -175,6 +198,7 @@ for checkpoint_dir in all_checkpoints:
 	fpath = path_to_trajfiles + fname
 	os.system('scp {0} ashesh@172.24.68.124:/home/ashesh/project/NN/RNNexp/crf_to_rnn/CRFProblems/H3.6m/dataParser/Utils/{2}/{1}.dat'.format(fpath,fname,checkpoint_dir))
 
+idx = ''
 for checkpoint_dir in all_checkpoints:
 
 	path_to_trajfiles = '{0}/{1}/'.format(base_dir,checkpoint_dir)
@@ -198,12 +222,13 @@ for checkpoint_dir in all_checkpoints:
 	dimensions_to_ignore = data_stats['ignore_dimensions']
 
 	for n in range(numexamples):
-		fname = 'ground_truth_forecast_N_{0}'.format(n)
+		fname = 'ground_truth_{1}forecast_N_{0}'.format(n,idx)
 		convertAndSave(fname)	
 		fpath = path_to_trajfiles + fname
+		print fpath
 		if os.path.exists(fpath):
 			os.system('scp {0} ashesh@172.24.68.124:/home/ashesh/project/NN/RNNexp/crf_to_rnn/CRFProblems/H3.6m/dataParser/Utils/{2}/{1}.dat'.format(fpath,fname,checkpoint_dir))
-		fname = 'motionprefix_N_{0}'.format(n)
+		fname = 'motionprefix{1}_N_{0}'.format(n,idx)
 		convertAndSave(fname)	
 		fpath = path_to_trajfiles + fname
 		if os.path.exists(fpath):
@@ -219,10 +244,10 @@ for checkpoint_dir in all_checkpoints:
 			fpath = path_to_trajfiles + fname
 			if os.path.exists(fpath):
 				os.system('scp {0} ashesh@172.24.68.124:/home/ashesh/project/NN/RNNexp/crf_to_rnn/CRFProblems/H3.6m/dataParser/Utils/{2}/{1}.dat'.format(fpath,fname,checkpoint_dir))
-		for iterations in range(2000,6250,250):
+		for iterations in range(4000,8000,250):
 			#fname = 'train_error_epoch_{1}_N_{0}'.format(n,e)
 			#convertAndSave(fname)
-			fname = 'forecast_iteration_{0}_N_{1}'.format(iterations,n)
+			fname = 'forecast_iteration{2}_{0}_N_{1}'.format(iterations,n,idx)
 			convertAndSave(fname)	
 			fpath = path_to_trajfiles + fname
 			if os.path.exists(fpath):

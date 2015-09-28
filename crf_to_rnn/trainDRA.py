@@ -5,10 +5,11 @@ try:
 except:
 	print 'Theano 0.6.0 version not found'
 
+import os
+os.environ['PATH'] += ':/usr/local/cuda/bin'
 import argparse
 import numpy as np
 import theano
-import os
 from theano import tensor as T
 from neuralmodels.utils import permute 
 from neuralmodels.loadcheckpoint import *
@@ -58,6 +59,7 @@ parser.add_argument('--crf',type=str,default='')
 parser.add_argument('--copy_state',type=int,default=0)
 parser.add_argument('--full_skeleton',type=int,default=0)
 parser.add_argument('--weight_decay',type=float,default=0.0)
+parser.add_argument('--train_for',type=str,default='validate')
 args = parser.parse_args()
 
 convert_list_to_float = ['decay_schedule','decay_rate_schedule','noise_schedule','noise_rate_schedule']
@@ -81,6 +83,7 @@ poseDataset.delta_shift = args.sequence_length - args.sequence_overlap
 poseDataset.num_forecast_examples = 24
 poseDataset.copy_state = args.copy_state
 poseDataset.full_skeleton = args.full_skeleton
+poseDataset.train_for = args.train_for
 poseDataset.runall()
 if poseDataset.copy_state:
 	args.batch_size = poseDataset.minibatch_size
@@ -159,7 +162,9 @@ def DRAmodelRegression(nodeList,edgeList,edgeListComplete,edgeFeatures,nodeFeatu
 
 	for em in edgeNames:
 		inputJointFeatures = edgeFeatures[em]
-		LSTMs = [LSTM('tanh','sigmoid',args.lstm_init,truncate_gradient=args.truncate_gradient,size=args.lstm_size,rng=rng,g_low=-args.g_clip,g_high=args.g_clip)
+		LSTMs = [
+			LSTM('tanh','sigmoid',args.lstm_init,truncate_gradient=args.truncate_gradient,size=args.lstm_size,rng=rng,g_low=-args.g_clip,g_high=args.g_clip)
+			#LSTM('tanh','sigmoid',args.lstm_init,truncate_gradient=args.truncate_gradient,size=args.lstm_size,rng=rng,g_low=-args.g_clip,g_high=args.g_clip)
 			]
 		edgeRNNs[em] = [TemporalInputFeatures(inputJointFeatures),
 				AddNoiseToInput(rng=rng),
