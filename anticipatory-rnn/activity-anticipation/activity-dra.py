@@ -1,7 +1,15 @@
 import sys
+try:
+	sys.path.remove('/usr/local/lib/python2.7/dist-packages/Theano-0.6.0-py2.7.egg')
+except:
+	print 'Theano 0.6.0 version not found'
+
 import numpy as np
 import theano
 import os
+os.environ['PATH'] += ':/usr/local/cuda/bin'
+
+
 from theano import tensor as T
 from readData import sortActivities
 from neuralmodels.utils import permute 
@@ -14,6 +22,19 @@ from neuralmodels.layers import * #softmax, simpleRNN, OneHot, LSTM, TemporalInp
 import cPickle
 import pdb
 import socket as soc
+import argparse
+
+parser = argparse.ArgumentParser(description='Process some integers.')
+parser.add_argument('--edgeRNN_size',type=int,default=128)
+parser.add_argument('--nodeRNN_size',type=int,default=256)
+parser.add_argument('--train_for',type=str,default='detection')
+parser.add_argument('--index',type=str,default='427232')
+parser.add_argument('--fold',type=str,default='fold_1')
+parser.add_argument('--checkpoint_path',type=str,default='')
+parser.add_argument('--noedgeRNN',type=int,default=0)
+args = parser.parse_args()
+
+print args
 
 '''
 Understanding data structures
@@ -38,7 +59,7 @@ def DRAmodel(nodeList,edgeList,edgeListComplete,edgeFeatures,nodeFeatures,nodeTo
 	for et in edgeTypes:
 		inputJointFeatures = edgeFeatures[et]
 		print inputJointFeatures
-		edgeRNNs[et] = [TemporalInputFeatures(inputJointFeatures),LSTM('tanh','sigmoid',lstm_init,truncate_gradient=4,size=128,rng=rng)] #128
+		edgeRNNs[et] = [TemporalInputFeatures(inputJointFeatures),LSTM('tanh','sigmoid',lstm_init,truncate_gradient=4,size=args.edgeRNN_size,rng=rng)] #128
 
 	nodeRNNs = {}
 	nodeTypes = nodeList.keys()
@@ -47,7 +68,42 @@ def DRAmodel(nodeList,edgeList,edgeListComplete,edgeFeatures,nodeFeatures,nodeTo
 	for nt in nodeTypes:
 		num_classes = nodeList[nt]
 		#nodeRNNs[nt] = [LSTM('tanh','sigmoid',lstm_init,truncate_gradient=4,size=256,rng=rng),softmax(num_classes,softmax_init,rng=rng)] #256
-		nodeRNNs[nt] = [LSTM('tanh','sigmoid',lstm_init,truncate_gradient=4,size=256,rng=rng)] #256
+		nodeRNNs[nt] = [LSTM('tanh','sigmoid',lstm_init,truncate_gradient=4,size=args.nodeRNN_size,rng=rng)] #256
+		if train_for=='joint':
+			nodeLabels[nt] = {}
+			nodeLabels[nt]['detection'] = T.lmatrix()
+			nodeLabels[nt]['anticipation'] = T.lmatrix()
+			outputLayer[nt] = [softmax(num_classes,softmax_init,rng=rng),softmax(num_classes+1,softmax_init,rng=rng)]
+		else:
+			nodeLabels[nt] = T.lmatrix()
+			outputLayer[nt] = [softmax(num_classes,softmax_init,rng=rng)]
+		et = nt+'_input'
+		edgeRNNs[et] = [TemporalInputFeatures(nodeFeatures[nt])]
+	learning_rate = T.fscalar()
+	dra = DRAanticipation(edgeRNNs,nodeRNNs,outputLayer,nodeToEdgeConnections,edgeListComplete,softmax_loss,nodeLabels,learning_rate,clipnorm,train_for=train_for)
+	return dra
+
+def DRAmodelnoedge(nodeList,edgeList,edgeListComplete,edgeFeatures,nodeFeatures,nodeToEdgeConnections,clipnorm=25.0,train_for='joint'):
+	edgeRNNs = {}
+	edgeTypes = edgeList
+	lstm_init = 'orthogonal'
+	softmax_init = 'uniform'
+	
+	rng = np.random.RandomState(1234567890)
+
+	for et in edgeTypes:
+		inputJointFeatures = edgeFeatures[et]
+		print inputJointFeatures
+		edgeRNNs[et] = [TemporalInputFeatures(inputJointFeatures)] #128
+
+	nodeRNNs = {}
+	nodeTypes = nodeList.keys()
+	nodeLabels = {}
+	outputLayer = {}
+	for nt in nodeTypes:
+		num_classes = nodeList[nt]
+		#nodeRNNs[nt] = [LSTM('tanh','sigmoid',lstm_init,truncate_gradient=4,size=256,rng=rng),softmax(num_classes,softmax_init,rng=rng)] #256
+		nodeRNNs[nt] = [LSTM('tanh','sigmoid',lstm_init,truncate_gradient=4,size=args.nodeRNN_size,rng=rng)] #256
 		if train_for=='joint':
 			nodeLabels[nt] = {}
 			nodeLabels[nt]['detection'] = T.lmatrix()
@@ -63,8 +119,8 @@ def DRAmodel(nodeList,edgeList,edgeListComplete,edgeFeatures,nodeFeatures,nodeTo
 	return dra
 
 if __name__ == '__main__':
-	index = sys.argv[1]	
-	fold = sys.argv[2]
+	index = args.index	
+	fold = args.fold
 	
 	main_path = ''
 	if soc.gethostname()[:6] == "napoli":
@@ -73,7 +129,7 @@ if __name__ == '__main__':
 		main_path = '.'
 			
 	path_to_dataset = '{1}/dataset/{0}'.format(fold,main_path)
-	path_to_checkpoints = '{1}/checkpoints/{0}'.format(fold,main_path)
+	path_to_checkpoints = '{1}/checkpoints/{0}'.format(args.checkpoint_path,main_path)
 
 	if not os.path.exists(path_to_checkpoints):
 		os.mkdir(path_to_checkpoints)
@@ -118,10 +174,17 @@ if __name__ == '__main__':
 	assert(X_tr_objects_shared.shape[0] == X_tr_objects_disjoint.shape[0])
 	assert(X_tr_objects_shared.shape[1] == X_tr_objects_disjoint.shape[1])
 
+	train_for = args.train_for
+	#train_for = 'detection'
+	#train_for = 'anticipation'
 
 	nodeList = {}
-	nodeList['H'] = num_sub_activities
-	nodeList['O'] = num_affordances
+	if train_for == 'detection' or train_for == 'joint':
+		nodeList['H'] = num_sub_activities
+		nodeList['O'] = num_affordances
+	else:
+		nodeList['H'] = num_sub_activities_anticipation
+		nodeList['O'] = num_affordances_anticipation
 	edgeList = ['HO']
 	edgeFeatures = {}
 	edgeFeatures['HO'] = inputJointFeatures
@@ -136,18 +199,25 @@ if __name__ == '__main__':
 	nodeToEdgeConnections['O']['HO'] = [0,inputJointFeatures]
 	nodeToEdgeConnections['O']['O_input'] = [inputJointFeatures,inputJointFeatures+inputObjectFeatures]
 	edgeCompleteList = ['HO','H_input','O_input']
-	dra = DRAmodel(nodeList,edgeList,edgeCompleteList,edgeFeatures,nodeFeatures,nodeToEdgeConnections)
+
+	dra = []
+	if args.noedgeRNN:
+		dra = DRAmodelnoedge(nodeList,edgeList,edgeCompleteList,edgeFeatures,nodeFeatures,nodeToEdgeConnections,train_for=train_for)
+	else:
+		dra = DRAmodel(nodeList,edgeList,edgeCompleteList,edgeFeatures,nodeFeatures,nodeToEdgeConnections,train_for=train_for)
+
 
 	trX = {}
 	trY = {}
-	trY['detection'] = {}
-	trY['anticipation'] = {}
 	trX['H:H'] = np.concatenate((X_tr_human_shared,X_tr_human_disjoint),axis=2)	
 	trX['O:O'] = np.concatenate((X_tr_objects_shared,X_tr_objects_disjoint),axis=2)	
-	trY['detection']['H:H'] = Y_tr_human
-	trY['detection']['O:O'] = Y_tr_objects
-	trY['anticipation']['H:H'] = Y_tr_human_anticipation
-	trY['anticipation']['O:O'] = Y_tr_objects_anticipation
+
+	trY['H:H'] = {}
+	trY['O:O'] = {}
+	trY['H:H']['detection'] = Y_tr_human
+	trY['O:O']['detection'] = Y_tr_objects
+	trY['H:H']['anticipation'] = Y_tr_human_anticipation
+	trY['O:O']['anticipation'] = Y_tr_objects_anticipation
 
 	trX_validation = {}
 	trY_validation = {}
@@ -168,10 +238,10 @@ if __name__ == '__main__':
 		trX_validation['H:H'].append(np.concatenate((share,disjoint),axis=2))
 	for y_a,y,share,disjoint in zip(Y_te_objects_anticipation,Y_te_objects,X_te_objects_shared,X_te_objects_disjoint):
 		trY_validation['detection']['O:O'].append(y)
-		trY_validation['anticipation']['H:H'].append(y_a)
+		trY_validation['anticipation']['O:O'].append(y_a)
 		trX_validation['O:O'].append(np.concatenate((share,disjoint),axis=2))
 
 	checkpoint_dir = '{1}/{0}/'.format(index,path_to_checkpoints)
 	if not os.path.exists(checkpoint_dir):
 		os.mkdir(checkpoint_dir)
-	dra.fitModel(trX,trY,10,checkpoint_dir,epochs=10,std=1e-5,trX_validation=trX_validation,trY_validation=trY_validation,predictfn=OutputMaxProb,maxiter=1000)
+	dra.fitModel(trX,trY,10,checkpoint_dir,epochs=10,std=1e-5,trX_validation=trX_validation,trY_validation=trY_validation,predictfn=OutputMaxProb,maxiter=1000,train_for=train_for,learning_rate=np.float32(0.001))

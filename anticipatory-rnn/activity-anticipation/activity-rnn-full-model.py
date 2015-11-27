@@ -94,7 +94,7 @@ if __name__ == '__main__':
 	fold = sys.argv[2]
 	
 	main_path = ''
-	if soc.gethostname() == "napoli110.stanford.edu":
+	if soc.gethostname()[:6] == "napoli":
 		#main_path = '/scr/ashesh/activity-anticipation'
 		main_path = '/scail/scratch/group/cvgl/ashesh/activity-anticipation'
 	elif soc.gethostname() == "ashesh":
@@ -140,7 +140,7 @@ if __name__ == '__main__':
 	print 'human features dim ',inputHumanFeatures
 	print 'object features dim ',inputObjectFeatures
 
-	epochs = 10
+	epochs = 300
 	batch_size = X_tr_human_disjoint.shape[1]
 	learning_rate_decay = 0.97
 	decay_after = 5
