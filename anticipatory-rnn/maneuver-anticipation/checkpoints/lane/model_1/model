@@ -1,0 +1,24 @@
+#all
+
+%This is a comment
+
+% This is a model with multipleRNNs and 
+% the loss layer is without any decay
+% that is loss at all time intervals 
+% weighted equally
+
+%Dataset id
+id=723759
+
+%Threshold value
+th=0.80
+
+%Model type
+model=multipleRNNs
+
+%Fold and checkpoint number
+fold_1,200
+fold_2,420
+fold_3,200
+fold_4,250
+fold_5,200

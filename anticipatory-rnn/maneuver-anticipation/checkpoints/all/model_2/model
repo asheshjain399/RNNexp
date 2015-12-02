@@ -1,0 +1,22 @@
+#all
+
+%This is a comment
+
+% This is a model with multipleRNNs and 
+% the decalying loss layer.
+
+%Dataset id
+id=356988
+
+%Threshold value
+th=0.86
+
+%Model type
+model=multipleRNNs
+
+%Fold and checkpoint number
+fold_1,550
+fold_2,599
+fold_3,550
+fold_4,550
+fold_5,500

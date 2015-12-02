@@ -5,10 +5,11 @@ try:
 except:
 	print 'Theano 0.6.0 version not found'
 
+import os
+os.environ['PATH'] += ':/usr/local/cuda/bin'
 import argparse
 import numpy as np
 import theano
-import os
 from theano import tensor as T
 from neuralmodels.utils import permute 
 from neuralmodels.loadcheckpoint import *
@@ -22,6 +23,7 @@ import pdb
 import socket as soc
 import copy
 import readCRFgraph as graph
+from unNormalizeData import unNormalizeData
 global rng
 rng = np.random.RandomState(1234567890)
 
@@ -58,6 +60,13 @@ parser.add_argument('--crf',type=str,default='')
 parser.add_argument('--copy_state',type=int,default=0)
 parser.add_argument('--full_skeleton',type=int,default=0)
 parser.add_argument('--weight_decay',type=float,default=0.0)
+parser.add_argument('--train_for',type=str,default='validate')
+parser.add_argument('--dra_type',type=str,default='simple')
+parser.add_argument('--temporal_features',type=int,default=0)
+parser.add_argument('--dataset_prefix',type=str,default='')
+parser.add_argument('--drop_features',type=int,default=0)
+parser.add_argument('--subsample_data',type=int,default=1)
+parser.add_argument('--drop_id',type=str,default='')
 args = parser.parse_args()
 
 convert_list_to_float = ['decay_schedule','decay_rate_schedule','noise_schedule','noise_rate_schedule']
@@ -73,6 +82,12 @@ if args.use_pretrained:
 	print 'Loading pre-trained model with iter={0}'.format(args.iter_to_load)
 gradient_method = Momentum(momentum=args.momentum)
 
+drop_ids = args.drop_id.split(',')
+drop_id = []
+for dids in drop_ids:
+	drop_id.append(int(dids))
+
+
 '''Loads H3.6m dataset'''
 sys.path.insert(0,'CRFProblems/H3.6m')
 import processdata as poseDataset
@@ -81,6 +96,13 @@ poseDataset.delta_shift = args.sequence_length - args.sequence_overlap
 poseDataset.num_forecast_examples = 24
 poseDataset.copy_state = args.copy_state
 poseDataset.full_skeleton = args.full_skeleton
+poseDataset.train_for = args.train_for
+poseDataset.temporal_features = args.temporal_features
+poseDataset.crf_file = './CRFProblems/H3.6m/crf' + args.crf
+poseDataset.dataset_prefix = args.dataset_prefix
+poseDataset.drop_features = args.drop_features
+poseDataset.drop_id = drop_id
+poseDataset.subsample_data = args.subsample_data
 poseDataset.runall()
 if poseDataset.copy_state:
 	args.batch_size = poseDataset.minibatch_size
@@ -159,10 +181,12 @@ def DRAmodelRegression(nodeList,edgeList,edgeListComplete,edgeFeatures,nodeFeatu
 
 	for em in edgeNames:
 		inputJointFeatures = edgeFeatures[em]
-		LSTMs = [LSTM('tanh','sigmoid',args.lstm_init,truncate_gradient=args.truncate_gradient,size=args.lstm_size,rng=rng,g_low=-args.g_clip,g_high=args.g_clip)
+		LSTMs = [
+			LSTM('tanh','sigmoid',args.lstm_init,truncate_gradient=args.truncate_gradient,size=args.lstm_size,rng=rng,g_low=-args.g_clip,g_high=args.g_clip)
+			#LSTM('tanh','sigmoid',args.lstm_init,truncate_gradient=args.truncate_gradient,size=args.lstm_size,rng=rng,g_low=-args.g_clip,g_high=args.g_clip)
 			]
 		edgeRNNs[em] = [TemporalInputFeatures(inputJointFeatures),
-				AddNoiseToInput(rng=rng),
+				#AddNoiseToInput(rng=rng),
 				FCLayer('rectify',args.fc_init,size=args.fc_size,rng=rng),
 				FCLayer('linear',args.fc_init,size=args.fc_size,rng=rng),
 				multilayerLSTM(LSTMs,skip_input=True,skip_output=True,input_output_fused=True)
@@ -182,9 +206,94 @@ def DRAmodelRegression(nodeList,edgeList,edgeListComplete,edgeFeatures,nodeFeatu
 				]
 		em = nm+'_input'
 		edgeRNNs[em] = [TemporalInputFeatures(nodeFeatureLength[nm]),
-				AddNoiseToInput(rng=rng),
+				#AddNoiseToInput(rng=rng),
 				FCLayer('rectify',args.fc_init,size=args.fc_size,rng=rng),
 				FCLayer('linear',args.fc_init,size=args.fc_size,rng=rng)
+				]
+		nodeLabels[nm] = T.tensor3(dtype=theano.config.floatX)
+	learning_rate = T.scalar(dtype=theano.config.floatX)
+	dra = DRA(edgeRNNs,nodeRNNs,nodeToEdgeConnections,edgeListComplete,euclidean_loss,nodeLabels,learning_rate,clipnorm=args.clipnorm,update_type=gradient_method,weight_decay=args.weight_decay)
+	return dra
+
+def DRAmodelRegressionNoEdge(nodeList,edgeList,edgeListComplete,edgeFeatures,nodeFeatureLength,nodeToEdgeConnections):
+
+	edgeRNNs = {}
+	edgeNames = edgeList
+
+	for em in edgeNames:
+		inputJointFeatures = edgeFeatures[em]
+		LSTMs = [
+			LSTM('tanh','sigmoid',args.lstm_init,truncate_gradient=args.truncate_gradient,size=args.lstm_size,rng=rng,g_low=-args.g_clip,g_high=args.g_clip)
+			#LSTM('tanh','sigmoid',args.lstm_init,truncate_gradient=args.truncate_gradient,size=args.lstm_size,rng=rng,g_low=-args.g_clip,g_high=args.g_clip)
+			]
+		edgeRNNs[em] = [TemporalInputFeatures(inputJointFeatures),
+				#AddNoiseToInput(rng=rng),
+				FCLayer('rectify',args.fc_init,size=args.fc_size,rng=rng),
+				FCLayer('linear',args.fc_init,size=args.fc_size,rng=rng)
+				#multilayerLSTM(LSTMs,skip_input=True,skip_output=True,input_output_fused=True)
+				]
+
+	nodeRNNs = {}
+	nodeTypes = nodeList.keys()
+	nodeLabels = {}
+	for nm in nodeTypes:
+		num_classes = nodeList[nm]
+		LSTMs = [LSTM('tanh','sigmoid',args.lstm_init,truncate_gradient=args.truncate_gradient,size=args.node_lstm_size,rng=rng,g_low=-args.g_clip,g_high=args.g_clip)
+			]
+		nodeRNNs[nm] = [multilayerLSTM(LSTMs,skip_input=True,skip_output=True,input_output_fused=True),
+				FCLayer('rectify',args.fc_init,size=args.fc_size,rng=rng),
+				FCLayer('rectify',args.fc_init,size=100,rng=rng),
+				FCLayer('linear',args.fc_init,size=num_classes,rng=rng)
+				]
+		em = nm+'_input'
+		edgeRNNs[em] = [TemporalInputFeatures(nodeFeatureLength[nm]),
+				#AddNoiseToInput(rng=rng),
+				FCLayer('rectify',args.fc_init,size=args.fc_size,rng=rng),
+				FCLayer('linear',args.fc_init,size=args.fc_size,rng=rng)
+				]
+		nodeLabels[nm] = T.tensor3(dtype=theano.config.floatX)
+	learning_rate = T.scalar(dtype=theano.config.floatX)
+	dra = DRA(edgeRNNs,nodeRNNs,nodeToEdgeConnections,edgeListComplete,euclidean_loss,nodeLabels,learning_rate,clipnorm=args.clipnorm,update_type=gradient_method,weight_decay=args.weight_decay)
+	return dra
+
+def DRAmodelRegression_RNNatEachNode(nodeList,edgeList,edgeListComplete,edgeFeatures,nodeFeatureLength,nodeToEdgeConnections):
+
+	edgeRNNs = {}
+	edgeNames = edgeList
+
+	for em in edgeNames:
+		inputJointFeatures = edgeFeatures[em]
+		LSTMs = [
+			LSTM('tanh','sigmoid',args.lstm_init,truncate_gradient=args.truncate_gradient,size=args.lstm_size,rng=rng,g_low=-args.g_clip,g_high=args.g_clip)
+			#LSTM('tanh','sigmoid',args.lstm_init,truncate_gradient=args.truncate_gradient,size=args.lstm_size,rng=rng,g_low=-args.g_clip,g_high=args.g_clip)
+			]
+		edgeRNNs[em] = [TemporalInputFeatures(inputJointFeatures),
+				#AddNoiseToInput(rng=rng),
+				FCLayer('rectify',args.fc_init,size=args.fc_size,rng=rng),
+				FCLayer('linear',args.fc_init,size=args.fc_size,rng=rng),
+				multilayerLSTM(LSTMs,skip_input=True,skip_output=True,input_output_fused=True)
+				]
+
+	nodeRNNs = {}
+	nodeTypes = nodeList.keys()
+	nodeLabels = {}
+	for nm in nodeTypes:
+		num_classes = nodeList[nm]
+		LSTMs = [LSTM('tanh','sigmoid',args.lstm_init,truncate_gradient=args.truncate_gradient,size=args.node_lstm_size,rng=rng,g_low=-args.g_clip,g_high=args.g_clip)
+			]
+		nodeRNNs[nm] = [multilayerLSTM(LSTMs,skip_input=True,skip_output=True,input_output_fused=True),
+				FCLayer('rectify',args.fc_init,size=args.fc_size,rng=rng),
+				FCLayer('rectify',args.fc_init,size=100,rng=rng),
+				FCLayer('linear',args.fc_init,size=num_classes,rng=rng)
+				]
+		em = nm+'_input'
+		LSTMs_edge = [LSTM('tanh','sigmoid',args.lstm_init,truncate_gradient=args.truncate_gradient,size=args.node_lstm_size,rng=rng,g_low=-args.g_clip,g_high=args.g_clip)
+			]
+		edgeRNNs[em] = [TemporalInputFeatures(nodeFeatureLength[nm]),
+				#AddNoiseToInput(rng=rng),
+				FCLayer('rectify',args.fc_init,size=args.fc_size,rng=rng),
+				FCLayer('linear',args.fc_init,size=args.fc_size,rng=rng),
+				multilayerLSTM(LSTMs_edge,skip_input=True,skip_output=True,input_output_fused=True)
 				]
 		nodeLabels[nm] = T.tensor3(dtype=theano.config.floatX)
 	learning_rate = T.scalar(dtype=theano.config.floatX)
@@ -197,7 +306,7 @@ def MaliksRegression(inputDim):
 		]
 
 	layers = [TemporalInputFeatures(inputDim),
-		AddNoiseToInput(rng=rng),
+		#AddNoiseToInput(rng=rng),
 		FCLayer('rectify',args.fc_init,size=500,rng=rng),
 		FCLayer('linear',args.fc_init,size=500,rng=rng),
 		multilayerLSTM(LSTMs,skip_input=True,skip_output=True),
@@ -218,7 +327,7 @@ def LSTMRegression(inputDim):
 		LSTM('tanh','sigmoid',args.lstm_init,truncate_gradient=args.truncate_gradient,size=args.lstm_size,rng=rng,g_low=-args.g_clip,g_high=args.g_clip)
 		]
 	layers = [TemporalInputFeatures(inputDim),
-		AddNoiseToInput(rng=rng),
+		#AddNoiseToInput(rng=rng),
 		multilayerLSTM(LSTMs,skip_input=True,skip_output=True),
 		FCLayer('linear',args.fc_init,size=inputDim,rng=rng)
 		]
@@ -236,7 +345,7 @@ def trainDRA():
 	if not os.path.exists(path_to_checkpoint):
 		os.mkdir(path_to_checkpoint)
 	saveNormalizationStats(path_to_checkpoint)
-	[nodeNames,nodeList,nodeFeatureLength,nodeConnections,edgeList,edgeListComplete,edgeFeatures,nodeToEdgeConnections,trX,trY,trX_validation,trY_validation,trX_forecasting,trY_forecasting,trX_forecast_nodeFeatures] = graph.readCRFgraph(crf_file,poseDataset)
+	[nodeNames,nodeList,nodeFeatureLength,nodeConnections,edgeList,edgeListComplete,edgeFeatures,nodeToEdgeConnections,trX,trY,trX_validation,trY_validation,trX_forecasting,trY_forecasting,trX_forecast_nodeFeatures] = graph.readCRFgraph(poseDataset)
 
 	new_idx = poseDataset.new_idx
 	featureRange = poseDataset.nodeFeaturesRanges
@@ -246,17 +355,23 @@ def trainDRA():
 		print 'DRA model loaded successfully'
 	else:
 		args.iter_to_load = 0
-		dra = DRAmodelRegression(nodeList,edgeList,edgeListComplete,edgeFeatures,nodeFeatureLength,nodeToEdgeConnections)
+		if args.dra_type == 'simple':
+			dra = DRAmodelRegression(nodeList,edgeList,edgeListComplete,edgeFeatures,nodeFeatureLength,nodeToEdgeConnections)
+		if args.dra_type == 'RNNatEachNode':
+			dra = DRAmodelRegression_RNNatEachNode(nodeList,edgeList,edgeListComplete,edgeFeatures,nodeFeatureLength,nodeToEdgeConnections)
+		if args.dra_type == 'NoEdge':
+			dra = DRAmodelRegressionNoEdge(nodeList,edgeList,edgeListComplete,edgeFeatures,nodeFeatureLength,nodeToEdgeConnections)
+
 
 	saveForecastedMotion(dra.convertToSingleVec(trY_forecasting,new_idx,featureRange),path_to_checkpoint)
 	saveForecastedMotion(dra.convertToSingleVec(trX_forecast_nodeFeatures,new_idx,featureRange),path_to_checkpoint,'motionprefix_N_')
 
 	dra.fitModel(trX, trY, snapshot_rate=args.snapshot_rate, path=path_to_checkpoint, epochs=args.epochs, batch_size=args.batch_size,
 		decay_after=args.decay_after, learning_rate=args.initial_lr, learning_rate_decay=args.learning_rate_decay, trX_validation=trX_validation,
-		trY_validation=trY_validation, trX_forecasting=trX_forecasting, trY_forecasting=trY_forecasting, iter_start=args.iter_to_load,
+		trY_validation=trY_validation, trX_forecasting=trX_forecasting, trY_forecasting=trY_forecasting,trX_forecast_nodeFeatures=trX_forecast_nodeFeatures, iter_start=args.iter_to_load,
 		decay_type=args.decay_type, decay_schedule=args.decay_schedule, decay_rate_schedule=args.decay_rate_schedule,
 		use_noise=args.use_noise, noise_schedule=args.noise_schedule, noise_rate_schedule=args.noise_rate_schedule,
-		new_idx=new_idx,featureRange=featureRange,poseDataset=poseDataset,graph=graph,maxiter=args.maxiter)
+		new_idx=new_idx,featureRange=featureRange,poseDataset=poseDataset,graph=graph,maxiter=args.maxiter,unNormalizeData=unNormalizeData)
 
 def trainMaliks():
 	path_to_checkpoint = poseDataset.base_dir + '/{0}/'.format(args.checkpoint_path)
@@ -286,7 +401,7 @@ def trainMaliks():
 		decay_after=args.decay_after, learning_rate=args.initial_lr, learning_rate_decay=args.learning_rate_decay, trX_validation=trX_validation,
 		trY_validation=trY_validation, trX_forecasting=trX_forecasting, trY_forecasting=trY_forecasting, iter_start=args.iter_to_load,
 		decay_type=args.decay_type, decay_schedule=args.decay_schedule, decay_rate_schedule=args.decay_rate_schedule,
-		use_noise=args.use_noise, noise_schedule=args.noise_schedule, noise_rate_schedule=args.noise_rate_schedule,maxiter=args.maxiter)
+		use_noise=args.use_noise, noise_schedule=args.noise_schedule, noise_rate_schedule=args.noise_rate_schedule,maxiter=args.maxiter,poseDataset=poseDataset,unNormalizeData=unNormalizeData)
 
 def trainLSTM():
 	#path_to_checkpoint = poseDataset.base_dir + '/checkpoints_LSTM_no_Trans_no_rot_lr_{0}_mu_{1}_gclip_{2}_batch_size_{3}_truncate_gradient_{4}/'.format(args.initial_lr,args.momentum,args.g_clip,args.batch_size,args.truncate_gradient)
@@ -318,10 +433,27 @@ def trainLSTM():
 		decay_after=args.decay_after, learning_rate=args.initial_lr, learning_rate_decay=args.learning_rate_decay, trX_validation=trX_validation,
 		trY_validation=trY_validation, trX_forecasting=trX_forecasting, trY_forecasting=trY_forecasting, iter_start=args.iter_to_load,
 		decay_type=args.decay_type, decay_schedule=args.decay_schedule, decay_rate_schedule=args.decay_rate_schedule,
-		use_noise=args.use_noise, noise_schedule=args.noise_schedule, noise_rate_schedule=args.noise_rate_schedule,maxiter=args.maxiter)
+		use_noise=args.use_noise, noise_schedule=args.noise_schedule, noise_rate_schedule=args.noise_rate_schedule,maxiter=args.maxiter,poseDataset=poseDataset,unNormalizeData=unNormalizeData)
 
 def saveNormalizationStats(path):
+	activities = {}
+	activities['walking'] = 14
+	activities['eating'] = 4
+	activities['smoking'] = 11
+	activities['discussion'] = 3
+	activities['walkingdog'] = 15
+
 	cPickle.dump(poseDataset.data_stats,open('{0}h36mstats.pik'.format(path),'wb'))
+	forecastidx = poseDataset.data_stats['forecastidx']
+	num_forecast_examples = len(forecastidx.keys())
+	f = open('{0}forecastidx'.format(path),'w')
+	for i in range(num_forecast_examples):
+		tupl = forecastidx[i]
+		st = '{0},{1},{2},{3}\n'.format(i,activities[tupl[0]],tupl[2],tupl[1])
+		f.write(st)
+	f.close()
+	print "************Done saving the stats*********"
+
 
 if __name__ == '__main__':
 

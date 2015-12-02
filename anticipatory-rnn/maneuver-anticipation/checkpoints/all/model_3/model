@@ -1,0 +1,22 @@
+#all
+
+%This is a comment
+
+% This is a model with simple RNN and 
+% the decaying loss layer 
+
+%Dataset id
+id=356988
+
+%Threshold value
+th=0.67
+
+%Model type
+model=lstm_one_layer
+
+%Fold and checkpoint number
+fold_1,599
+fold_2,599
+fold_3,599
+fold_4,599
+fold_5,599

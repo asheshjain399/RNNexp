@@ -1,0 +1,22 @@
+#all
+
+%This is a comment
+
+% This is a model with simple RNN and 
+% the loss layer 
+
+%Dataset id
+id=356988
+
+%Threshold value
+th=0.72
+
+%Model type
+model=lstm_one_layer
+
+%Fold and checkpoint number
+fold_1,300
+fold_2,300
+fold_3,300
+fold_4,300
+fold_5,300

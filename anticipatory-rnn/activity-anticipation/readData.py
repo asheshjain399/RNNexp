@@ -204,8 +204,8 @@ def readActivity(folder,files):
 	return Y, features_node, features_temporal_edge, features_node_node
 
 def sortActivities(folder):
-	ground_truth='/scr/ashesh/activity-anticipation/features_ground_truth'
-	dataset = '/scr/ashesh/activity-anticipation/dataset/fold_{0}'.format(fold)
+	ground_truth='/scail/scratch/group/cvgl/ashesh/activity-anticipation/features_ground_truth'
+	dataset = '/scail/scratch/group/cvgl/ashesh/activity-anticipation/dataset/fold_{0}'.format(fold)
 	if not os.path.exists(dataset):
 		os.mkdir(dataset)
 
@@ -561,8 +561,8 @@ if __name__ == '__main__':
 	prefix = sixDigitRandomNum()	
 	for fold in folds:	
 		#s='/scr/ashesh/activity-anticipation/features_full_model'
-		s='/scr/ashesh/activity-anticipation/features_ground_truth'
-		test_file = '/scr/ashesh/activity-anticipation/activityids_fold{0}.txt'.format(fold)
+		s='/scail/scratch/group/cvgl/ashesh/activity-anticipation/features_ground_truth'
+		test_file = '/scail/scratch/group/cvgl/ashesh/activity-anticipation/activityids_fold{0}.txt'.format(fold)
 		
 		lines = open(test_file).readlines()
 		test_activities = []
@@ -577,7 +577,7 @@ if __name__ == '__main__':
 		for j in folds:
 			if j == fold:
 				continue
-			train_file = '/scr/ashesh/activity-anticipation/activityids_fold{0}.txt'.format(j)
+			train_file = '/scail/scratch/group/cvgl/ashesh/activity-anticipation/activityids_fold{0}.txt'.format(j)
 			print "train ",train_file
 			lines = open(train_file).readlines()
 			for line in lines:
