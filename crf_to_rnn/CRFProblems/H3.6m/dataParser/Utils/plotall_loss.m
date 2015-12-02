@@ -1,4 +1,4 @@
-clear all;
+%clear all;
 clc;
 %close all;
 names = dir;
@@ -15,6 +15,7 @@ for i = 1:size(folders,2) %numel(names)
     %if nm.isdir && ~strcmp(nm.name , '.') && ~strcmp(nm.name , '..')
         
         disp(nm.name)
+
         substring = strsplit(nm.name,'_');
         
         x = strfind(substring,'clipnorm');
@@ -106,13 +107,16 @@ for i = 1:size(folders,2) %numel(names)
         else
             clr = rand(1,3);
         end;
-        loss = loss*1.0/T;
+        loss = sqrt(loss*1.0/T)*(1.0/54);
+        
         validation = validation*1.0/T;
         loss = interp1(1:numel(loss),loss,1:numel(loss));
         p(fnum) = plot(loss,'color',clr,'linewidth',3);
         legend_to_add{fnum} = ['T=',num2str(T),' bs=',batch_size, ' cnm=',clipnorm,' noi=',noise,' lr=',decayrate];
         hold on;
-        plot(find(validation>0),(validation(find(validation>0))),'color',clr,'linewidth',3,'linestyle','--');
+        valerr = (sqrt((validation(find(validation>0)))))*1.0/54;
+        %valerr = (validation(find(validation>0)));
+        plot(find(validation>0),valerr,'color',clr,'linewidth',3,'linestyle','--');
         fnum = fnum + 1;
         hold on;
     %end;
