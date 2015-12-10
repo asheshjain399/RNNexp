@@ -1,12 +1,17 @@
-function  mean_error = motionGenerationError( dirname )
+function  mean_error = motionGenerationError( dirname,iter_use )
 
 clrs='rgbkmc';
+
+if nargin < 2
+    iter_use = 4000;
+end;
 
 legend_to_add = {};
 fnum = 1;
 figure;
 toplot = false;
-for iteration = 6000
+mean_error = [];
+for iteration =   iter_use
     R0 = eye(3);
     T0 = [0 0 0];
     errors = [];

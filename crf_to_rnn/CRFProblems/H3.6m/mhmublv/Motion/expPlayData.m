@@ -1,5 +1,5 @@
-function [xlim, ylim, zlim] = ...
-    expPlayData(skel, channels, frameLength, writerObj, close_before_returning, xlim, ylim, zlim)
+function [xlim1, ylim2, zlim3] = ...
+    expPlayData(skel, channels, frameLength, writerObj, close_before_returning, xlim1, ylim2, zlim3)
 
 % Version 1.01 
 %
@@ -39,6 +39,12 @@ clf
 %set(gcf,'Visible','off');
 %figure;
 handle = expVisualise(channels(1, :), skel);
+x0=1000;
+y0=1000;
+width=550;
+height=400;
+%set(gcf,'units','points','position',[x0,y0,width,height])
+
 
 if nargin < 8
     %We didn't specify the limits of the motion
@@ -60,30 +66,58 @@ if nargin < 8
             minY3 = min([Y(:, 3); minY3]);
             maxY1 = max([Y(:, 1); maxY1]);
             maxY2 = max([Y(:, 2); maxY2]);
-            maxY3 = max([Y(:, 3); maxY3]);
+            maxY3 = max([Y(:, 3); maxY3]);0
         end
         xlim = [minY1 maxY1];
         ylim = [minY3 maxY3];
         zlim = [minY2 maxY2];
 end
 
-set(gca, 'xlim', xlim, ...
-    'ylim', ylim, ...
-    'zlim', zlim);
+set(gca, 'xlim', xlim, 'ylim', ylim, 'zlim', zlim);
 
 % Play the motion
 %writerObj = VideoWriter('generated.avi');
 %writerObj.FrameRate = 100.0;
 %open(writerObj);
 
+ax = gca;
+ax.XLimMode = 'manual';
+ax.YLimMode = 'manual';
+ax.ZLimMode = 'manual';
+set(gca,'LineWidth',3,'XTickLabel',[],'YTickLabel',[],'ZTickLabel',[],'XLabel',[],'YLabel',[],'ZLabel',[]);
+set(handle,'color','g');
+set(handle(1),'MarkerSize',30);
+set(handle(2:end),'LineWidth',5);
+init_size = true;
+
 for jj = 1:size(channels, 1)
+    set(handle(1),'MarkerSize',30);
+    set(handle(2:end),'LineWidth',5);
     if  jj > 50
-        set(handle(1),'color','g')
+        set(handle,'color','b')
     end;
+    %title(num2str(jj));
+    
+    xval = channels(jj, 1);
+    yval = channels(jj, 2);
+    zval = channels(jj, 3);
+    
     expModify(handle, channels(jj, :), skel);
+
     if nargin > 3
         %disp(jj)
-        writeVideo(writerObj,getframe);
+        drawnow;
+        frame1 = getframe(gca);
+        %if mod(jj ,10) == 0
+        %    imwrite(frame1.cdata,[num2str(jj),'.png'],'Mode','lossless');
+        %end;
+        %disp(size(frame1.cdata));
+        if init_size
+            [w h c] = size(frame1.cdata);
+            init_size = false;
+        end;
+        writeVideo(writerObj,imresize(frame1.cdata,[w h]));
+        %writeVideo(writerObj,frame1);
     else
         pause(frameLength);
     end;
@@ -94,3 +128,30 @@ end;
 if nargin == 5 && close_before_returning
     close(writerObj);
 end;
+close all;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
