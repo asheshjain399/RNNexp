@@ -13,6 +13,7 @@ from utils import confusionMat
 from predictions import predictManeuver,predictLastTimeManeuver
 import sys
 import copy
+import time
 
 def evaluate(path_to_dataset,path_to_checkpoint,model_type='multipleRNNs'):
 	'''
