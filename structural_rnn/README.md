@@ -18,5 +18,11 @@ In order to train S-RNN on H3.6m you will run ```hyperParameterTuning.py```. In 
 
 ```model``` can take one of the following values ```srnn``` or ```erd``` or ```lstm3lr```
 
-```hyperParameterTuning.py``` will internally call ```trainDRA.py``` which will import ```NeuralModels```, build your model, and also train it.  
+```hyperParameterTuning.py``` will print name of a directory (```result_dir```) to your screen where the trained models and all results will be saved. 
+
+```hyperParameterTuning.py``` will internally call ```trainDRA.py``` which will import ```NeuralModels``` and then build your model, and also train it. ```trainDRA.py``` will automatically dump results of motion forecasting (on test set) in ```result_dir```. 
+
+Once training has finished, you will need to parse the forecasted motion using ```generateMotionData.py``` which is located in directory ```CRFProblems/H3.6m/```.
+
+Inside ```generateMotionData.py``` you can specify the checkpoint directory that you want to parse. 
 
