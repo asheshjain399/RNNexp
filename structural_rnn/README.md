@@ -18,3 +18,5 @@ In order to train S-RNN on H3.6m you will run ```hyperParameterTuning.py```. In 
 
 ```model``` can take one of the following values ```srnn``` or ```erd``` or ```lstm3lr```
 
+```hyperParameterTuning.py``` will internally call ```trainDRA.py``` which will import ```NeuralModels```, build your model, and also train it.  
+
