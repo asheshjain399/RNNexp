@@ -4,8 +4,8 @@ import copy
 import socket as soc
 from datetime import datetime
 
-base_dir = '/scail/scratch/group/cvgl/ashesh/h3.6m'
-gpus = [0]
+base_dir = open('basedir','r').readline().strip()
+gpus = [1]
 ## Set gpus = [gpu_id] if you don't have a gpu then set gpus = []
 
 ## Hyper parameters for training S-RNN
@@ -13,24 +13,24 @@ params = {}
 
 ## These hyperparameters are OKAY to tweak. They will affect training, convergence etc.
 params['initial_lr'] = 1e-3
-params['decay_schedule'] = [1.5e3,4.5e3]
-params['decay_rate_schedule'] = [0.1,0.1] 
-params['lstm_init'] = 'uniform'
-params['fc_init'] = 'uniform'
+params['decay_schedule'] = [1.5e3,4.5e3] # Decrease learning rate after these many iterations
+params['decay_rate_schedule'] = [0.1,0.1] # Multiply the current learning rate by this factor
+params['lstm_init'] = 'uniform' # Initialization of lstm weights
+params['fc_init'] = 'uniform' # Initialization of FC layer weights
 params['clipnorm'] = 25.0
 params['use_noise'] = 1
-params['noise_schedule'] = [250,0.5e3,1e3,1.3e3,2e3,2.5e3,3.3e3]
-params['noise_rate_schedule'] = [0.01,0.05,0.1,0.2,0.3,0.5,0.7]
+params['noise_schedule'] = [250,0.5e3,1e3,1.3e3,2e3,2.5e3,3.3e3] # Add noise after these many iterations
+params['noise_rate_schedule'] = [0.01,0.05,0.1,0.2,0.3,0.5,0.7] # Variance of noise to add
 params['momentum'] = 0.99
 params['g_clip'] = 25.0
-params['truncate_gradient'] = 100
-params['sequence_length'] = 150
-params['sequence_overlap'] = 50
+params['truncate_gradient'] = 10 #100
+params['sequence_length'] = 150 # Length of each sequence fed to RNN
+params['sequence_overlap'] = 50 
 params['batch_size'] = 100
-params['lstm_size'] = 512
-params['node_lstm_size'] = 512
-params['fc_size'] = 256
-params['snapshot_rate'] = 250
+params['lstm_size'] = 10 #512
+params['node_lstm_size'] = 10 #512
+params['fc_size'] = 10 #256
+params['snapshot_rate'] = 250 # Save the model after every 250 iterations
 params['train_for'] = 'final' 
 '''
 Possible options are ['eating','smoking','discussion','final','']
@@ -113,7 +113,8 @@ for k in params.keys():
 			args.append(str(x))
 
 FNULL = open('{0}stdout.txt'.format(path_to_checkpoint),'w')
-p=sbp.Popen(args,env=my_env,shell=False,stdout=FNULL,stderr=sbp.STDOUT)
+#p=sbp.Popen(args,env=my_env,shell=False,stdout=FNULL,stderr=sbp.STDOUT)
+p=sbp.Popen(args,env=my_env)
 pd = p.pid
 p.wait()
 

@@ -19,7 +19,7 @@ actions = ['walking','eating','smoking']
 subactions=['1','2']
 
 base_dir = ''
-base_dir = '/scail/scratch/group/cvgl/ashesh/h3.6m'
+base_dir = open('basedir','r').readline().strip()
 
 nodeFeaturesRanges={}
 nodeFeaturesRanges['torso'] = range(6)
