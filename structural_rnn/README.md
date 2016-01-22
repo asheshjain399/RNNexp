@@ -12,5 +12,9 @@ Open ```basedir``` file and edit the path to where you have saved the data set. 
 
 ## Training Structural-RNN for human motion modeling on H3.6m data set
 
-In order to train S-RNN on H3.6m you will run ```hyperParameterTuning.py```. In this script we have defined all the hyperparameters for training S-RNN
+In order to train S-RNN on H3.6m you will run ```hyperParameterTuning.py```. In this script we have defined all the hyperparameters for training S-RNN, ERD [1], and LSTM-3LR [1]. 
+
+```python hyperParameterTuning.py model```
+
+```model``` can take one of the following values ```srnn``` or ```erd``` or ```lstm3lr```
 
