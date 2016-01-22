@@ -2,9 +2,9 @@
 
 ## Prerequisites
 
-Install [NeuralModels](https://github.com/asheshjain399/NeuralModels) and checkout its [srnn] branch
+Install [NeuralModels](https://github.com/asheshjain399/NeuralModels) and checkout its [srnn](https://github.com/asheshjain399/NeuralModels/tree/srnn) branch
 
-Download the motion capture data from [URL]. We originally obtained this data from H3.6m and processed it further to use. If you use this data set then please cite the original authors of H3.6m data set. Also check their lisencing conditions. 
+Download the motion capture data from [URL]. We originally obtained this data from [H3.6m] (http://vision.imar.ro/human3.6m/description.php) and processed it further to exponential map. If you use this data set then please cite the original authors of H3.6m data set. Also check their lisencing conditions. 
 
 Open ```basedir``` file and edit the path to where you have saved the data set. We will use the same directory to save the checkpoints of our trained model. Size of each checkpoint can go upto few 100's MB. So make sure that you have enough disk space before you start training your own model.
 
@@ -24,5 +24,5 @@ In order to train S-RNN on H3.6m you will run ```hyperParameterTuning.py```. In 
 
 Once training has finished, you will need to parse the forecasted motion using ```generateMotionData.py``` which is located in directory ```CRFProblems/H3.6m/```.
 
-Inside ```generateMotionData.py``` you can specify the checkpoint directory that you want to parse. 
+Inside ```generateMotionData.py``` you can specify the checkpoint directory that you want to parse. This will write the human motion as exponential map in the same directory. 
 
