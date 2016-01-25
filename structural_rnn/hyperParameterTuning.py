@@ -52,7 +52,7 @@ cv['clipnorm'] = [25.0]
 #cv['maxiter'] = [1000]
 cv['noise'] = [	#[[],[]]
 		#[[900.0,2000.0,3000.0,4000.0,5000.0,6000.0,7000.0,8000.0],[0.1,0.3,0.5,0.7,0.8,0.9,1.0,1.2]]
-		[[250,0.5e3,1e3,1.3e3,2e3,2.5e3,3.3e3],[0.01,0.05,0.1,0.2,0.3,0.5,0.7]]
+		[[250,0.5e3,1e3,1.3e3,2e3,2.5e3,3.3e3],[0.01,0.05,0.1,0.2,0.3,0.5,0.75]]
 		#[[250,0.5e3,1e3,1.3e3,2e3,2.5e3,3.3e3],[0.01,0.05,0.1,0.2,0.3,0.5,0.65]]
 		#[[1e3,1.5e3,1.8e3,2.3e3,3e3,3.8e3,4e3,4.5e3],[0.1,0.3,0.5,0.7,0.8,0.9,1.0,1.2]]
 		#[[250,500,750,1000,1250,1500,1750,2000,2250,2500],[0.001,0.002,0.004,0.008,0.016,0.032,0.064,0.128,0.256,0.512]]	
@@ -260,8 +260,8 @@ for value_list in cv_list:
 				args.append(str(x))
 
 	FNULL = open('{0}stdout.txt'.format(path_to_checkpoint),'w')
-	p=sbp.Popen(args,env=my_env,shell=False,stdout=FNULL,stderr=sbp.STDOUT)
+	p=sbp.Popen(args,env=my_env)#,shell=False,stdout=FNULL,stderr=sbp.STDOUT)
 	pd = p.pid
-	#p.wait()
+	p.wait()
 	ongoing_file.write('{0} {1}\n'.format(path_to_checkpoint,pd))
 ongoing_file.close()
