@@ -8,7 +8,7 @@ import sys
 train_model = sys.argv[1]
 
 base_dir = open('basedir','r').readline().strip()
-gpus = [1]
+gpus = []
 ## Set gpus = [gpu_id] if you don't have a gpu then set gpus = []
 
 ## Hyper parameters for training S-RNN
