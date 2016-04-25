@@ -31,7 +31,6 @@ rng = np.random.RandomState(1234567890)
 parser = argparse.ArgumentParser(description='Process some integers.')
 parser.add_argument('--checkpoint',type=str,default='checkpoint')
 parser.add_argument('--forecast',type=str,default='malik')
-parser.add_argument('--iteration',type=int,default=4500)
 parser.add_argument('--motion_prefix',type=int,default=50)
 parser.add_argument('--motion_suffix',type=int,default=100)
 parser.add_argument('--temporal_features',type=int,default=0)
@@ -61,91 +60,91 @@ poseDataset.drop_id = [args.drop_id]
 poseDataset.runall()
 print '**** H3.6m Loaded ****'
 
-iteration = args.iteration
 new_idx = poseDataset.new_idx
 featureRange = poseDataset.nodeFeaturesRanges
-base_dir = poseDataset.base_dir
-path = '{0}/{1}/'.format(base_dir,args.checkpoint)
+path = args.checkpoint
 if not os.path.exists(path):
 	print 'Checkpoint path does not exist. Exiting!!'
 	sys.exit()
-	
+
 crf_file = './CRFProblems/H3.6m/crf'
 
-if args.forecast == 'dra':
-	path_to_checkpoint = '{0}checkpoint.{1}'.format(path,iteration)
-	if os.path.exists(path_to_checkpoint):
-		[nodeNames,nodeList,nodeFeatureLength,nodeConnections,edgeList,edgeListComplete,edgeFeatures,nodeToEdgeConnections,trX,trY,trX_validation,trY_validation,trX_forecasting,trY_forecasting,trX_forecast_nodeFeatures] = graph.readCRFgraph(poseDataset,noise=0.7,forecast_on_noisy_features=True)
-		print trX_forecast_nodeFeatures.keys()
-		print 'Loading the model'
-		model = loadDRA(path_to_checkpoint)
-		print 'Loaded DRA: ',path_to_checkpoint
-		t0 = time.time()
+if args.forecast == 'srnn':
+    path_to_checkpoint = '{0}checkpoint'.format(path)
+    print "Using checkpoint at: ",path_to_checkpoint
+    if os.path.exists(path_to_checkpoint):
 
-		trY_forecasting = model.convertToSingleVec(trY_forecasting,new_idx,featureRange)
-		fname = 'ground_truth_longforecast'
-		model.saveForecastedMotion(trY_forecasting,path,fname)
+	    [nodeNames,nodeList,nodeFeatureLength,nodeConnections,edgeList,edgeListComplete,edgeFeatures,nodeToEdgeConnections,trX,trY,trX_validation,trY_validation,trX_forecasting,trY_forecasting,trX_forecast_nodeFeatures] = graph.readCRFgraph(poseDataset)
 
-		trX_forecast_nodeFeatures_ = model.convertToSingleVec(trX_forecast_nodeFeatures,new_idx,featureRange)
-		fname = 'motionprefixlong'
-		model.saveForecastedMotion(trX_forecast_nodeFeatures_,path,fname)
+        print trX_forecast_nodeFeatures.keys()
+        print 'Loading the model (this takes long, can take upto 25 minutes)'
+        model = loadDRA(path_to_checkpoint)
+        print 'Loaded S-RNN from ',path_to_checkpoint
+        t0 = time.time()
 
-		forecasted_motion = model.predict_sequence(trX_forecasting,trX_forecast_nodeFeatures,sequence_length=trY_forecasting.shape[0],poseDataset=poseDataset,graph=graph)
-		forecasted_motion = model.convertToSingleVec(forecasted_motion,new_idx,featureRange)
-		fname = 'forecast_iterationlong_{0}'.format(iteration)
-		model.saveForecastedMotion(forecasted_motion,path,fname)
+        trY_forecasting = model.convertToSingleVec(trY_forecasting,new_idx,featureRange)
+        fname = 'ground_truth_forecast'
+        model.saveForecastedMotion(trY_forecasting,path,fname)
 
-		skel_err = np.mean(np.sqrt(np.sum(np.square((forecasted_motion - trY_forecasting)),axis=2)),axis=1)
-		err_per_dof = skel_err / trY_forecasting.shape[2]
-		fname = 'forecast_error_iterationlong_{0}'.format(iteration)
-		model.saveForecastError(skel_err,err_per_dof,path,fname)
-		t1 = time.time()
-		del model
+        trX_forecast_nodeFeatures_ = model.convertToSingleVec(trX_forecast_nodeFeatures,new_idx,featureRange)
+        fname = 'motionprefix'
+        model.saveForecastedMotion(trX_forecast_nodeFeatures_,path,fname)
+
+        forecasted_motion = model.predict_sequence(trX_forecasting,trX_forecast_nodeFeatures,sequence_length=trY_forecasting.shape[0],poseDataset=poseDataset,graph=graph)
+        forecasted_motion = model.convertToSingleVec(forecasted_motion,new_idx,featureRange)
+        fname = 'forecast'
+        model.saveForecastedMotion(forecasted_motion,path,fname)
+
+        skel_err = np.mean(np.sqrt(np.sum(np.square((forecasted_motion - trY_forecasting)),axis=2)),axis=1)
+        err_per_dof = skel_err / trY_forecasting.shape[2]
+        fname = 'forecast_error'
+        model.saveForecastError(skel_err,err_per_dof,path,fname)
+        t1 = time.time()
+        del model
+
+elif args.forecast == 'lstm3lr' or args.forecast == 'erd':
+    path_to_checkpoint = '{0}checkpoint.{1}'.format(path,iteration)
+    if os.path.exists(path_to_checkpoint):
+        print "Loading the model {0} (this may take sometime)".format(args.forecast)
+        model = load(path_to_checkpoint)
+        print 'Loaded the model from ',path_to_checkpoint
+
+        trX_forecasting,trY_forecasting = poseDataset.getMalikTrajectoryForecasting()
+
+        fname = 'ground_truth_forecast'
+        model.saveForecastedMotion(trY_forecasting,path,fname)
+
+        fname = 'motionprefix'
+        model.saveForecastedMotion(trX_forecasting,path,fname)
+
+        forecasted_motion = model.predict_sequence(trX_forecasting,sequence_length=trY_forecasting.shape[0])
+        fname = 'forecast'
+        model.saveForecastedMotion(forecasted_motion,path,fname)
+
+        skel_err = np.mean(np.sqrt(np.sum(np.square((forecasted_motion - trY_forecasting)),axis=2)),axis=1)
+        err_per_dof = skel_err / trY_forecasting.shape[2]
+        fname = 'forecast_error'
+        model.saveForecastError(skel_err,err_per_dof,path,fname)
+
+        del model
 
 elif args.forecast == 'dracell':
-	path_to_checkpoint = '{0}checkpoint.{1}'.format(path,iteration)
-	if os.path.exists(path_to_checkpoint):
-		[nodeNames,nodeList,nodeFeatureLength,nodeConnections,edgeList,edgeListComplete,edgeFeatures,nodeToEdgeConnections,trX,trY,trX_validation,trY_validation,trX_forecasting,trY_forecasting,trX_forecast_nodeFeatures] = graph.readCRFgraph(poseDataset,noise=0.7,forecast_on_noisy_features=True)
-		print trX_forecast_nodeFeatures.keys()
-		print 'Loading the model'
-		model = loadDRA(path_to_checkpoint)
-		print 'Loaded DRA: ',path_to_checkpoint
-		t0 = time.time()
-		trY_forecasting = model.convertToSingleVec(trY_forecasting,new_idx,featureRange)
+    path_to_checkpoint = '{0}checkpoint.{1}'.format(path,iteration)
+    if os.path.exists(path_to_checkpoint):
+        [nodeNames,nodeList,nodeFeatureLength,nodeConnections,edgeList,edgeListComplete,edgeFeatures,nodeToEdgeConnections,trX,trY,trX_validation,trY_validation,trX_forecasting,trY_forecasting,trX_forecast_nodeFeatures] = graph.readCRFgraph(poseDataset,noise=0.7,forecast_on_noisy_features=True)
+        print trX_forecast_nodeFeatures.keys()
+        print 'Loading the model'
+        model = loadDRA(path_to_checkpoint)
+        print 'Loaded DRA: ',path_to_checkpoint
+        t0 = time.time()
+        trY_forecasting = model.convertToSingleVec(trY_forecasting,new_idx,featureRange)
 
-		trX_forecast_nodeFeatures_ = model.convertToSingleVec(trX_forecast_nodeFeatures,new_idx,featureRange)
-		fname = 'motionprefixlong'
-		model.saveForecastedMotion(trX_forecast_nodeFeatures_,path,fname)
+        trX_forecast_nodeFeatures_ = model.convertToSingleVec(trX_forecast_nodeFeatures,new_idx,featureRange)
+        fname = 'motionprefixlong'
+        model.saveForecastedMotion(trX_forecast_nodeFeatures_,path,fname)
 
-		cellstate = model.predict_cell(trX_forecasting,trX_forecast_nodeFeatures,sequence_length=trY_forecasting.shape[0],poseDataset=poseDataset,graph=graph)
-		fname = 'forecast_celllong_{0}'.format(iteration)
-		model.saveCellState(cellstate,path,fname)
-		t1 = time.time()
-		del model
-
-elif args.forecast == 'lstm' or args.forecast == 'malik':
-	path_to_checkpoint = '{0}checkpoint.{1}'.format(path,iteration)
-	if os.path.exists(path_to_checkpoint):
-		model = load(path_to_checkpoint)
-		print 'Loaded LSTM/Malik: ',path_to_checkpoint
-
-		trX_forecasting,trY_forecasting = poseDataset.getMalikTrajectoryForecasting()
-
-		fname = 'ground_truth_forecast'
-		model.saveForecastedMotion(trY_forecasting,path,fname)
-
-		fname = 'motionprefix'
-		model.saveForecastedMotion(trX_forecasting,path,fname)
-
-		forecasted_motion = model.predict_sequence(trX_forecasting,sequence_length=trY_forecasting.shape[0])
-		fname = 'forecast_iteration_{0}'.format(iteration)
-		model.saveForecastedMotion(forecasted_motion,path,fname)
-
-		'''
-		skel_err = np.mean(np.sqrt(np.sum(np.square((forecasted_motion - trY_forecasting)),axis=2)),axis=1)
-		err_per_dof = skel_err / trY_forecasting.shape[2]
-		fname = 'forecast_error_iteration_{0}'.format(iteration)
-		model.saveForecastError(skel_err,err_per_dof,path,fname)
-		'''
-
-		del model
+        cellstate = model.predict_cell(trX_forecasting,trX_forecast_nodeFeatures,sequence_length=trY_forecasting.shape[0],poseDataset=poseDataset,graph=graph)
+        fname = 'forecast_celllong_{0}'.format(iteration)
+        model.saveCellState(cellstate,path,fname)
+        t1 = time.time()
+        del model

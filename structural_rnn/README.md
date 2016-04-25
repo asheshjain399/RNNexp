@@ -26,3 +26,14 @@ Once training has finished, you will need to parse the forecasted motion using `
 
 Inside ```generateMotionData.py``` you can specify the checkpoint directory that you want to parse. This will write the human motion as exponential map in the same directory. 
 
+## Loading and evaluating pre-trained models
+
+Pre-trained models of S-RNN, ERD, and LSTM-3LR can be downloaded from [here]()
+
+In order to run one of the pre-trained models use the following command:
+
+```python generateMotionForecast.py model path```
+
+where ```model``` can take one of the following values ```srnn``` or ```erd``` or ```lstm3lr```, and relative ```path``` to the ```checkpoint```
+
+
