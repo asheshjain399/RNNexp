@@ -28,7 +28,7 @@ Inside ```generateMotionData.py``` you can specify the checkpoint directory that
 
 ## Loading and evaluating pre-trained models
 
-Pre-trained models of S-RNN, ERD, and LSTM-3LR can be downloaded from [here]()
+Pre-trained models of S-RNN, ERD, and LSTM-3LR can be downloaded from [here](https://drive.google.com/drive/folders/0B7lfjqylzqmMZlI3TUNUUEFQMXc)
 
 In order to run one of the pre-trained models use the following command:
 
